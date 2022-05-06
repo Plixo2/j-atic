@@ -1,0 +1,7 @@
+package de.plixo.atic;
+
+public enum LexToken {
+    TOPLEVEL, IDENTIFIER,
+    L_EXPONENT,L_TERM,L_FACTOR,L_ARITHMETIC,L_COM_ARITHMETIC,L_BOOL_ARITHMETIC,
+
+}

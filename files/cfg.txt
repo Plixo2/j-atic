@@ -1,0 +1,7 @@
+In := Hello World End | Bye | HelloWorld "?" In | "Ich" In "bins" | "hilfe" END | World Hello In HelloWorld In "ende" In
+Bye := "bye"
+
+HelloWorld := Hello World
+Hello := "Hello"
+World := "World"
+END := "!"
