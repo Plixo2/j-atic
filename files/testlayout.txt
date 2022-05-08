@@ -1,0 +1,5 @@
+logic main {
+    fn Main(test array) -> void {
+        int i = (1 && 2) && (((1 > 3) < 1000) || 3)
+    }
+}

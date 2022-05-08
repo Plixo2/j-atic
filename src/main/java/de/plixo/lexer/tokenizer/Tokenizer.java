@@ -1,4 +1,6 @@
-package de.plixo.atic;
+package de.plixo.lexer.tokenizer;
+
+import de.plixo.lexer.exceptions.FailedTokenCaptureException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,18 +10,16 @@ import java.util.function.Predicate;
 
 public class Tokenizer {
     public static <T extends Enum<?>> List<TokenRecord<T>> apply(String text, T[] tokens,
-                                                              BiFunction<T,String,Boolean> tokenPeekPredicate,
-                                                              BiFunction<T,String,Boolean>tokenCapturePredicate) throws FailedTokenCaptureException {
+                                                                 BiFunction<T, String, Boolean> tokenPeekPredicate,
+                                                                 BiFunction<T, String, Boolean> tokenCapturePredicate) {
         List<TokenRecord<T>> records = new ArrayList<>();
-        // f.peek.asPredicate().test(subString)
-        //capture.asPredicate().test(capturedChars.toString())
         int charCount = 0;
         final int length = text.length();
         final StringBuilder capturedChars = new StringBuilder();
         while (charCount < length) {
             final String subString = text.substring(charCount);
             final Optional<T> matchedToken = findFirst(tokens,
-                    f -> tokenPeekPredicate.apply(f,subString));
+                    f -> tokenPeekPredicate.apply(f, subString));
             if (matchedToken.isEmpty()) {
                 throw new FailedTokenCaptureException("Failed to capture start token of " + subString);
             }
@@ -28,13 +28,13 @@ public class Tokenizer {
             while (charCount < length) {
                 capturedChars.append(text.charAt(charCount));
                 charCount += 1;
-                if (!tokenCapturePredicate.apply(matchedToken.get() , capturedChars.toString())) {
+                if (!tokenCapturePredicate.apply(matchedToken.get(), capturedChars.toString())) {
                     capturedChars.deleteCharAt(capturedChars.length() - 1);
                     charCount -= 1;
                     break;
                 }
             }
-            records.add(new TokenRecord<T>(matchedToken.get(), capturedChars.toString()));
+            records.add(new TokenRecord<>(matchedToken.get(), capturedChars.toString()));
             capturedChars.setLength(0);
         }
 
@@ -51,9 +51,4 @@ public class Tokenizer {
     }
 
 
-    public static class FailedTokenCaptureException extends Exception {
-        public FailedTokenCaptureException(String message) {
-            super(message);
-        }
-    }
 }

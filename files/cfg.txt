@@ -1,7 +1,31 @@
-In := Hello World End | Bye | HelloWorld "?" In | "Ich" In "bins" | "hilfe" END | World Hello In HelloWorld In "ende" In
-Bye := "bye"
+In := logic
 
-HelloWorld := Hello World
-Hello := "Hello"
-World := "World"
-END := "!"
+logic := "logic"? Id "{"? logicCompound "}"?
+logicCompound := logicSpace logicCompound | logicSpace
+logicSpace := "fn"? id "("? inputList ")"? "->"? Type functionLogic
+inputList := Type id ","? inputList | Type id | |
+functionLogic := "{"? statement "}"?
+
+statement := Type ID "="? expression
+
+Type :=  ID
+ID := "Keyword"
+
+
+expression := boolArithmetic
+factor := "("? expression ")"? | unary | not | number | "false" | "true"
+number := "number"
+
+unary :=  neg_unary | pos_unary
+neg_unary := "-"? factor
+pos_unary := "+"? factor
+not :=  "!"? factor
+
+boolArithmetic := comparisonArithmetic boolArithmeticFunc boolArithmetic | comparisonArithmetic
+comparisonArithmetic := arithmetic comparisonArithmeticFunc comparisonArithmetic | arithmetic
+arithmetic := term arithmeticFunc arithmetic | term
+term := factor termFunc term | factor
+termFunc := "*" | "/"
+arithmeticFunc := "+" | "-"
+comparisonArithmeticFunc := ">" | ">=" | "<" | "<=" | "==" | "!="
+boolArithmeticFunc := "&&" | "||"

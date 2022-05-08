@@ -1,4 +1,4 @@
-package de.plixo.atic.lexer;
+package de.plixo.lexer;
 
 import lombok.Setter;
 
@@ -41,9 +41,4 @@ public class TokenStream<T> {
         return list.size() - index;
     }
 
-    public static class OutOfTokenException extends RuntimeException {
-        public OutOfTokenException(String message) {
-            super(message);
-        }
-    }
 }

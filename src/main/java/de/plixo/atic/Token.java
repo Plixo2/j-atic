@@ -4,14 +4,48 @@ import java.util.regex.Pattern;
 
 
 public enum Token {
-    KEYWORD("[a-zA-Z]", "\\w+$"),
-    WHITESPACE("\\s", "[^\\S\\r\\n]+");
+    WHITESPACE("", "\\s", "\\s*"),
+    ASSIGN_ARROW("->", "->", "(-|->)"),
+    PARENTHESES_O("(", "\\(", "\\("),
+    PARENTHESES_C(")", "\\)", "\\)"),
+    BRACES_O("{", "\\{", "\\{"),
+    BRACES_C("}", "\\}", "\\}"),
+    BRACKET_O("[", "\\[", "\\["),
+    BRACKET_C("]", "\\]", "\\]"),
+    SEPARATOR(",", "\\,", "\\,"),
+    NOT("!", "\\!", "\\!"),
+    OR("||", "\\|\\|", "(\\||\\|\\|)"),
+    AND("&&", "\\&\\&", "(\\&|\\&\\&)"),
+    PLUS("+", "\\+", "(\\+)"),
+    MINUS("-", "\\-", "(\\-)"),
+    MUL("*", "\\*", "(\\*)"),
+    DIV("/", "\\/", "(\\/)"),
+    GREATER("<", "<", "(<)"),
+    SMALLER(">", ">", "(>)"),
+    SMALLER_EQUALS("<=", "<=", "(<=|<)"),
+    GREATER_EQUALS(">=", ">=", "(>=|>)"),
+    EQUALS("==", "==", "(==|=)"),
+    NON_EQUALS("!=", "!=", "(!=|!)"),
+    FUNCTION("fn", "fn", "(fn|f)"),
+    TRUE("true", "true", "(true|tru|tr|t)"),
+    FALSE("false", "false", "(false|fals|fal|fa|f)"),
+    logic("logic", "logic", "(logic|logi|log|lo|l)"),
+    NUMBER("number", "[0-9-]", "[0-9-.]+"),
+    KEYWORD("keyword", "[a-zA-Z]", "\\w+"),
+    ASSIGN("=", "=", "="),
 
+    ;
+    public final Pattern peek;
+    public final Pattern capture;
+    public final String alias;
 
-    final Pattern peek;
-    final Pattern capture;
+    Token(String alias, String peek, String capture) {
+        if (alias == null || alias.isEmpty()) {
+            this.alias = this.name();
+        } else {
+            this.alias = alias;
+        }
 
-    Token(String peek, String capture) {
         this.peek = Pattern.compile("^" + peek, Pattern.MULTILINE);
         this.capture = Pattern.compile("^" + capture + "$", Pattern.MULTILINE);
     }

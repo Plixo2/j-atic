@@ -1,4 +1,4 @@
-package de.plixo.atic;
+package de.plixo.lexer.tokenizer;
 
 import lombok.AllArgsConstructor;
 
