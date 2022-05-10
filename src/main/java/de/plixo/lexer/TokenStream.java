@@ -29,16 +29,8 @@ public class TokenStream<T> {
         index += 1;
     }
 
-    public void reset() {
-        index = 0;
-    }
-
     public int index() {
         return index;
-    }
-
-    public int entriesLeft() {
-        return list.size() - index;
     }
 
 }

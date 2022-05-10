@@ -1,5 +1,6 @@
 package de.plixo.atic;
 
+import de.plixo.atic.compiler.semantic.SemanticProcessor;
 import de.plixo.lexer.AutoLexer;
 import de.plixo.lexer.GrammarReader;
 import de.plixo.lexer.tokenizer.TokenRecord;
@@ -33,7 +34,7 @@ public class CFGTest {
         apply.removeIf(f -> f.token == Token.WHITESPACE);
         System.out.println("-> Tokenizer took " + (System.currentTimeMillis() - t1) + "ms ");
         t1 = System.currentTimeMillis();
-
+        apply.add(new TokenRecord<>(Token.END_OF_FILE,"END OF FILE"));
         final AutoLexer<TokenRecord<Token>> autoLexer =
                 new AutoLexer<>((string, token) -> token.token.alias.equalsIgnoreCase(string));
         final AutoLexer.SyntaxNode<TokenRecord<Token>> in = autoLexer
@@ -44,13 +45,15 @@ public class CFGTest {
         t1 = System.currentTimeMillis();
 
         if (in == null) {
+            apply.forEach(token -> System.out.println(token.data));
             System.err.println("Could not apply ruleset");
             return;
         }
 
-        AutoLexerCompiler compiler = new AutoLexerCompiler();
-        compiler.entry(in);
-        System.out.println("-> Compiler took " + (System.currentTimeMillis() - t1) + "ms ");
+        SemanticProcessor.convert(in);
+      //  AutoLexerCompiler compiler = new AutoLexerCompiler();
+      //  compiler.entry(in);
+      //  System.out.println("-> Compiler took " + (System.currentTimeMillis() - t1) + "ms ");
 
     }
 

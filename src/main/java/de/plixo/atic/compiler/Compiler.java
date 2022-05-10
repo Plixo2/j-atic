@@ -2,16 +2,17 @@ package de.plixo.atic.compiler;
 
 import de.plixo.atic.Helper;
 import de.plixo.atic.Token;
+import de.plixo.atic.compiler.semantic.type.SemanticType;
 import de.plixo.lexer.AutoLexer;
 import de.plixo.lexer.tokenizer.TokenRecord;
 import lombok.RequiredArgsConstructor;
 
-import java.util.Objects;
 import java.util.function.Function;
 
 @RequiredArgsConstructor
 public class Compiler<T extends AutoLexer.SyntaxNode<TokenRecord<Token>>> {
 
+    /*
     final Function<T, String> leafData;
     private int usedRegisters = 0;
 
@@ -38,71 +39,90 @@ public class Compiler<T extends AutoLexer.SyntaxNode<TokenRecord<Token>>> {
     }
 
     private CompiledObject translateBoolExpr(T expr) {
-        if (testNode(expr, "boolArithmeticFunc")) {
-            final T leftExpr = yieldNode(expr, "comparisonArithmetic");
-            final String op = leaf(yieldNode(expr, "boolArithmeticFunc"));
-            final T rightExpr = yieldNode(expr, "boolArithmetic");
-             int finalRegister = usedRegisters;
-            final CompiledObject left = translateComparisonExpr(leftExpr);
-            final CompiledObject right = translateBoolExpr(rightExpr);
-            testObjectType(left.object, VariableType.fromType(Primitives.Integer));
-            testObjectType(right.object, VariableType.fromType(Primitives.Integer));
-            usedRegisters = finalRegister;
-            usedRegisters++;
-            switch (op) {
-                case "&&" -> CodeGeneration.genAnd(finalRegister, left.finalRegister, right.finalRegister);
-                case "||" -> CodeGeneration.genOR(finalRegister, left.finalRegister, right.finalRegister);
-                default -> throw new UnknownOperandException("Unknown code \"" + op + "\"");
-            }
-            return genObject(VariableType.fromType(Primitives.Integer), finalRegister);
-        } else {
-            final T comparisonExpr = yieldNode(expr, "comparisonArithmetic");
-            return translateComparisonExpr(comparisonExpr);
+        final CompiledObject compiled = compileBinaryExpr("boolArithmeticFunc", "comparisonArithmetic",
+                "boolArithmetic", expr,
+                this::translateComparisonExpr, this::translateBoolExpr, (op, left, right, reg) -> {
+                    testObjectType(left.object, SemanticType.SingleType.fromType(Primitives.Integer));
+                    testObjectType(right.object, SemanticType.SingleType.fromType(Primitives.Integer));
+                    switch (op) {
+                        case "&&" -> CodeGeneration.genAnd(reg, left.finalRegister, right.finalRegister);
+                        case "||" -> CodeGeneration.genOR(reg, left.finalRegister, right.finalRegister);
+                        default -> throw new UnknownOperandException("Unknown code \"" + op + "\"");
+                    }
+                    return SemanticType.SingleType.fromType(Primitives.Integer);
+                });
+        if (compiled != null) {
+            return compiled;
         }
+        final T comparisonExpr = yieldNode(expr, "comparisonArithmetic");
+        return translateComparisonExpr(comparisonExpr);
     }
+
 
     private CompiledObject translateComparisonExpr(T expr) {
-        if (testNode(expr, "comparisonArithmeticFunc")) {
-            final T leftExpr = yieldNode(expr, "arithmetic");
-            final String op = leaf(yieldNode(expr, "comparisonArithmeticFunc"));
-            final T rightExpr = yieldNode(expr, "comparisonArithmetic");
-            int finalRegister = usedRegisters;
-            final CompiledObject left = translateArithmeticExpr(leftExpr);
-            final CompiledObject right = translateComparisonExpr(rightExpr);
-            testObjectType(left.object, VariableType.fromType(Primitives.Integer));
-            testObjectType(right.object, VariableType.fromType(Primitives.Integer));
-            usedRegisters = finalRegister;
-            usedRegisters++;
-            switch (op) {
-                case "<" -> CodeGeneration.genSMALLER(finalRegister, left.finalRegister, right.finalRegister);
-                case ">" -> CodeGeneration.genGREATER(finalRegister, left.finalRegister, right.finalRegister);
-                case "<=" -> CodeGeneration.genSMALLER_EQUALS(finalRegister, left.finalRegister, right.finalRegister);
-                case ">=" -> CodeGeneration.genGREATER_EQUALS(finalRegister, left.finalRegister, right.finalRegister);
-                case "==" -> CodeGeneration.genEQUALS(finalRegister, left.finalRegister, right.finalRegister);
-                case "!=" -> CodeGeneration.genNON_EQUALS(finalRegister, left.finalRegister, right.finalRegister);
-                default -> throw new UnknownOperandException("Unknown code \"" + op + "\"");
-            }
-            return genObject(VariableType.fromType(Primitives.Integer), finalRegister);
-        } else {
-            final T comparisonExpr = yieldNode(expr, "arithmetic");
-            return translateArithmeticExpr(comparisonExpr);
+        final CompiledObject compiled = compileBinaryExpr("comparisonArithmeticFunc", "arithmetic",
+                "comparisonArithmetic", expr,
+                this::translateArithmeticExpr, this::translateComparisonExpr, (op, left, right, reg) -> {
+                    testObjectType(left.object, SemanticType.SingleType.fromType(Primitives.Integer));
+                    testObjectType(right.object, SemanticType.SingleType.fromType(Primitives.Integer));
+                    switch (op) {
+                        case "<" -> CodeGeneration.genSMALLER(reg, left.finalRegister, right.finalRegister);
+                        case ">" -> CodeGeneration.genGREATER(reg, left.finalRegister, right.finalRegister);
+                        case "<=" -> CodeGeneration.genSMALLER_EQUALS(reg, left.finalRegister, right.finalRegister);
+                        case ">=" -> CodeGeneration.genGREATER_EQUALS(reg, left.finalRegister, right.finalRegister);
+                        case "==" -> CodeGeneration.genEQUALS(reg, left.finalRegister, right.finalRegister);
+                        case "!=" -> CodeGeneration.genNON_EQUALS(reg, left.finalRegister, right.finalRegister);
+                        default -> throw new UnknownOperandException("Unknown code \"" + op + "\"");
+                    }
+                    return SemanticType.SingleType.fromType(Primitives.Integer);
+                });
+        if (compiled != null) {
+            return compiled;
         }
+        final T comparisonExpr = yieldNode(expr, "arithmetic");
+        return translateArithmeticExpr(comparisonExpr);
+
     }
 
+
     private CompiledObject translateArithmeticExpr(T expr) {
-        if (!testNode(expr, "arithmeticFunc")) {
-            final T comparisonExpr = yieldNode(expr, "term");
-            return translateTermExpr(comparisonExpr);
+        final CompiledObject compiled = compileBinaryExpr("arithmeticFunc", "term",
+                "arithmetic", expr,
+                this::translateTermExpr, this::translateArithmeticExpr, (op, left, right, reg) -> {
+                    testObjectType(left.object, right.object);
+                    testObjectAsNumber(left.object);
+                    switch (op) {
+                        case "+" -> CodeGeneration.genAdd(reg, left.finalRegister, right.finalRegister);
+                        case "-" -> CodeGeneration.genSub(reg, left.finalRegister, right.finalRegister);
+                        default -> throw new UnknownOperandException("Unknown code \"" + op + "\"");
+                    }
+                    return SemanticType.SingleType.fromType(Primitives.Integer);
+                });
+        if (compiled != null) {
+            return compiled;
         }
-        return null;
+        final T comparisonExpr = yieldNode(expr, "term");
+        return translateTermExpr(comparisonExpr);
     }
 
     private CompiledObject translateTermExpr(T expr) {
-        if (!testNode(expr, "termFunc")) {
-            final T comparisonExpr = yieldNode(expr, "factor");
-            return translateFactorExpr(comparisonExpr);
+        final CompiledObject compiled = compileBinaryExpr("termFunc", "factor",
+                "term", expr,
+                this::translateFactorExpr, this::translateTermExpr, (op, left, right, reg) -> {
+                    testObjectType(left.object, right.object);
+                    testObjectAsNumber(left.object);
+                    switch (op) {
+                        case "*" -> CodeGeneration.genMul(reg, left.finalRegister, right.finalRegister);
+                        case "/" -> CodeGeneration.genDiv(reg, left.finalRegister, right.finalRegister);
+                        default -> throw new UnknownOperandException("Unknown code \"" + op + "\"");
+                    }
+                    return SemanticType.SingleType.fromType(Primitives.Integer);
+                });
+        if (compiled != null) {
+            return compiled;
         }
-        return null;
+        final T comparisonExpr = yieldNode(expr, "factor");
+        return translateFactorExpr(comparisonExpr);
     }
 
     private CompiledObject translateFactorExpr(T expr) {
@@ -110,19 +130,53 @@ public class Compiler<T extends AutoLexer.SyntaxNode<TokenRecord<Token>>> {
             final int finalRegister = usedRegisters++;
             final String number = leaf(yieldNode(expr, "number"));
             CodeGeneration.genConst(finalRegister, Integer.parseInt(number));
-            return genObject(VariableType.fromType(Primitives.Integer), finalRegister);
+            return genObject(SemanticType.SingleType.fromType(Primitives.Integer), finalRegister);
         } else if (testNode(expr, "expression")) {
             return translateExpr(yieldNode(expr, "expression"));
+        } else if (testNode(expr, "unary")) {
+            final T unary = yieldNode(expr, "unary");
+            if (testNode(unary, "neg_unary")) {
+                final CompiledObject neg_unary = translateFactorExpr(yieldNode(yieldNode(unary, "neg_unary"), "factor"
+                ));
+                testObjectAsNumber(neg_unary.object);
+                CodeGeneration.genUNARY(neg_unary.finalRegister, neg_unary.finalRegister);
+                return genObject(neg_unary.object, neg_unary.finalRegister);
+            } else {
+                return translateFactorExpr(yieldNode(yieldNode(unary, "pos_unary"), "factor"));
+            }
+        } else if (testNode(expr, "not")) {
+            final T not = yieldNode(expr, "not");
+            final CompiledObject negated = translateFactorExpr(yieldNode(not, "factor"));
+            testObjectType(negated.object, SemanticType.SingleType.fromType(Primitives.Integer));
+            CodeGeneration.genNOT(negated.finalRegister, negated.finalRegister);
+            return genObject(negated.object, negated.finalRegister);
+        } else if (testNode(expr, "boolLiteral")) {
+            final String boolLiteral = leaf(yieldNode(expr, "boolLiteral"));
+            final int finalRegister = usedRegisters++;
+            switch (boolLiteral) {
+                case "true" -> CodeGeneration.genLOAD_TRUE(finalRegister);
+                case "false" -> CodeGeneration.genLOAD_FALSE(finalRegister);
+                default -> throw new UnknownOperandException("Unknown bool terminal \"" + boolLiteral + "\"");
+            }
+            return genObject(SemanticType.SingleType.fromType(Primitives.Integer), finalRegister);
         }
-        return null;
+        throw new MissingNodeException("Unknown Factor");
     }
 
 
-    private void testObjectType(VariableType first, VariableType second) {
+    private void testObjectType(SemanticType.SingleType first, SemanticType.SingleType second) {
         if (!first.equals(second)) {
             throw new IncompatibleTypeException("Conflict between " + first.type + " and " + second.type);
         }
     }
+
+    private void testObjectAsNumber(SemanticType.SingleType first) {
+        if (!first.equals(SemanticType.SingleType.fromType(Primitives.Integer)) && !first
+                .equals(SemanticType.SingleType.fromType(Primitives.Decimal))) {
+            throw new IncompatibleTypeException("Conflict between " + first.type + " and decimal/integer");
+        }
+    }
+
 
     private boolean testNode(T in, String name) {
         for (var node : in.list) {
@@ -135,11 +189,32 @@ public class Compiler<T extends AutoLexer.SyntaxNode<TokenRecord<Token>>> {
 
     private T yieldNode(T in, String name) {
         for (var node : in.list) {
-            if (node.name.equals(name)) {
+            if (node.name.equalsIgnoreCase(name)) {
                 return (T) node;
             }
         }
         throw new MissingNodeException("Missing a " + name + " Node in " + in.name);
+    }
+
+
+    private CompiledObject compileBinaryExpr(String func, String left, String right, T expr,
+                                             Function<T, CompiledObject> leftFunction,
+                                             Function<T, CompiledObject> rightFunction,
+                                             TConsumer<String, CompiledObject, CompiledObject, Integer, SemanticType.SingleType> consumer) {
+        if (testNode(expr, func)) {
+            final T leftExpr = yieldNode(expr, left);
+            final String op = leaf(yieldNode(expr, func));
+            final T rightExpr = yieldNode(expr, right);
+            int finalRegister = usedRegisters;
+            final CompiledObject leftObj = leftFunction.apply(leftExpr);
+            final CompiledObject rightObj = rightFunction.apply(rightExpr);
+            final SemanticType.SingleType type = consumer.accept(op, leftObj, rightObj, finalRegister);
+            usedRegisters = finalRegister;
+            usedRegisters++;
+            return genObject(type, finalRegister);
+        } else {
+            return null;
+        }
     }
 
     private String leaf(T leafNode) {
@@ -147,13 +222,13 @@ public class Compiler<T extends AutoLexer.SyntaxNode<TokenRecord<Token>>> {
     }
 
 
-    private static CompiledObject genObject(VariableType t, int finalRegister) {
+    private static CompiledObject genObject(SemanticType.SingleType t, int finalRegister) {
         return new CompiledObject(t, finalRegister);
     }
 
     @RequiredArgsConstructor
     public static class CompiledObject {
-        final VariableType object;
+        final SemanticType.SingleType object;
         final int finalRegister;
     }
 
@@ -176,31 +251,9 @@ public class Compiler<T extends AutoLexer.SyntaxNode<TokenRecord<Token>>> {
         }
     }
 
-    @RequiredArgsConstructor
-    public static class VariableType {
-        final UniqueType type;
-        final boolean isArray;
 
-        @Override
-        public boolean equals(Object o) {
-            if (this == o)
-                return true;
-            if (o == null || getClass() != o.getClass())
-                return false;
-            VariableType that = (VariableType) o;
-            return isArray == that.isArray && Objects.equals(type, that.type);
-        }
-
-        public static VariableType fromType(UniqueType type) {
-            return new VariableType(type, false);
-        }
-
-        @Override
-        public String toString() {
-            return "VariableType{" +
-                    "type=" + type +
-                    ", isArray=" + isArray +
-                    '}';
-        }
+    private interfaces TConsumer<A, B, C, D, T> {
+        T accept(A a, B b, C c, D d);
     }
+    */
 }

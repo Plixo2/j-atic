@@ -9,7 +9,7 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
 public class Tokenizer {
-    public static <T extends Enum<?>> List<TokenRecord<T>> apply(String text, T[] tokens,
+    public static <T> List<TokenRecord<T>> apply(String text, T[] tokens,
                                                                  BiFunction<T, String, Boolean> tokenPeekPredicate,
                                                                  BiFunction<T, String, Boolean> tokenCapturePredicate) {
         List<TokenRecord<T>> records = new ArrayList<>();

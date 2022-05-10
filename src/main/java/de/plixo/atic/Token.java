@@ -17,7 +17,7 @@ public enum Token {
     OR("||", "\\|\\|", "(\\||\\|\\|)"),
     AND("&&", "\\&\\&", "(\\&|\\&\\&)"),
     PLUS("+", "\\+", "(\\+)"),
-    MINUS("-", "\\-", "(\\-)"),
+    MINUS("-", "\\-[^0-9]", "(\\-)"),
     MUL("*", "\\*", "(\\*)"),
     DIV("/", "\\/", "(\\/)"),
     GREATER("<", "<", "(<)"),
@@ -30,8 +30,10 @@ public enum Token {
     TRUE("true", "true", "(true|tru|tr|t)"),
     FALSE("false", "false", "(false|fals|fal|fa|f)"),
     logic("logic", "logic", "(logic|logi|log|lo|l)"),
+    STRUCT("struct", "struct", "(struct|struc|stru|str|st|s)"),
     NUMBER("number", "[0-9-]", "[0-9-.]+"),
     KEYWORD("keyword", "[a-zA-Z]", "\\w+"),
+    END_OF_FILE("EOF", "$.^", "$.^"),
     ASSIGN("=", "=", "="),
 
     ;

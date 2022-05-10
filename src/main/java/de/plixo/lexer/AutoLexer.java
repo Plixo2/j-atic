@@ -20,6 +20,12 @@ public class AutoLexer<T> {
         final TokenStream<T> stream = new TokenStream<>(tokens);
         final SyntaxNode<T> node = testRule(rule, stream);
         if (stream.hasEntriesLeft()) {
+            System.err.println("Entries left");
+            while (stream.hasEntriesLeft()) {
+                final T current = stream.current();
+                stream.consume();
+                System.err.println(current);
+            }
             return null;
         }
         return node;

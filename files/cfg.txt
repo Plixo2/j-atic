@@ -1,20 +1,31 @@
-In := logic
+In := top
+
+top := struct top | logic top | "eof"
+
+struct := "struct"? ID "{"? declarationCompound "}"?
+declarationCompound := declaration declarationCompound ||
+declaration := Type ID
+
 
 logic := "logic"? Id "{"? logicCompound "}"?
-logicCompound := logicSpace logicCompound | logicSpace
+logicCompound := logicSpace logicCompound | logicSpace ||
 logicSpace := "fn"? id "("? inputList ")"? "->"? Type functionLogic
-inputList := Type id ","? inputList | Type id | |
-functionLogic := "{"? statement "}"?
+inputList := inputTerm ","? inputList | inputTerm | |
+inputTerm := Type id
+j
+functionLogic := "{"? compound
 
+compound := "}"? | statement compound
 statement := Type ID "="? expression
 
-Type :=  ID
+Type := ID
 ID := "Keyword"
 
 
 expression := boolArithmetic
-factor := "("? expression ")"? | unary | not | number | "false" | "true"
+factor := "("? expression ")"? | unary | not | number | boolLiteral
 number := "number"
+boolLiteral := "false" | "true"
 
 unary :=  neg_unary | pos_unary
 neg_unary := "-"? factor

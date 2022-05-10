@@ -1,5 +1,18 @@
-logic main {
-    fn Main(test array) -> void {
-        int i = (1 && 2) && (((1 > 3) < 1000) || 3)
+struct a {
+    int x
+    int y
+}
+struct b {
+    int z
+}
+logic space {
+    fn main(int in) -> void {
+
     }
+    fn calc(int in,decimal in) -> int {
+
+    }
+}
+struct c {
+
 }

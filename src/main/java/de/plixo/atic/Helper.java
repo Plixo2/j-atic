@@ -41,9 +41,12 @@ public class Helper {
 
     private static <T> void print(AutoLexer.SyntaxNode<T> obj, StringBuilder buffer, String prefix,
                                   String childrenPrefix, Function<AutoLexer.SyntaxNode<T>, String> leafInfo) {
+        if(obj == null) {
+            return;
+        }
         buffer.append(prefix);
         if (obj instanceof AutoLexer.LeafNode) {
-            buffer.append(obj.name).append(": ").append(leafInfo.apply(obj));
+            buffer.append(leafInfo.apply(obj));
         } else {
             buffer.append(obj.name);
         }

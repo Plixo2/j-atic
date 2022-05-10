@@ -10,6 +10,7 @@ public enum Operation {
     DIV,
     OR,
     AND,
+    NOT,
     GREATER,
     SMALLER,
     SMALLER_EQUALS,
@@ -18,6 +19,7 @@ public enum Operation {
     NON_EQUALS,
     LOAD_TRUE,
     LOAD_FALSE,
+    UNARY,
     LOAD_CONST;
 
     public static Map<Integer, Operation> indexedMap = new HashMap<>();

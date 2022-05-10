@@ -39,11 +39,11 @@ public class CodeGeneration {
     }
 
     public static void genLOAD_TRUE(int dest) {
-        combine(LOAD_TRUE, dest);
+        combine(LOAD_TRUE, 0, 0, dest);
     }
 
     public static void genLOAD_FALSE(int dest) {
-        combine(LOAD_FALSE, dest);
+        combine(LOAD_FALSE, 0, 0, dest);
     }
 
     public static void genGREATER(int dest, int a, int b) {
@@ -68,6 +68,14 @@ public class CodeGeneration {
 
     public static void genNON_EQUALS(int dest, int a, int b) {
         combine(NON_EQUALS, a, b, dest);
+    }
+
+    public static void genUNARY(int dest, int a) {
+        combine(UNARY, 0, a, dest);
+    }
+
+    public static void genNOT(int dest, int a) {
+        combine(NOT, 0, a, dest);
     }
 
     public static void genConst(int a, int constant) {
