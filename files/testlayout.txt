@@ -11,6 +11,6 @@ logic space {
         int w = 2
     }
     fn getInt() -> int {
-        auto b = 100
+        auto b = a.b()
     }
 }

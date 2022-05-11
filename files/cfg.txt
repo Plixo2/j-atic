@@ -10,9 +10,10 @@ declaration := Type ID
 logic := "logic"? Id "{"? logicCompound "}"?
 logicCompound := logicSpace logicCompound | logicSpace ||
 logicSpace := "fn"? id "("? inputList ")"? "->"? Type statement
-inputList := inputTerm ","? inputList | inputTerm | |
+inputList := inputTerm ","? inputList | inputTerm ||
 inputTerm := Type id
 
+argList := expression ","?  argList | expression ||
 
 //statements
 statement := blockStatement | assignmentStatement | declarationStatement
@@ -27,19 +28,34 @@ statementCompound := statement statementCompound ||
 //branchStatement := "if"
 //evaluationStatement := expression
 
-
+//type
 Type := ID
+
+
 ID := "Keyword"
 
-
+//expression here
 expression := boolArithmetic
-factor := "("? expression ")"? | unary | not | number | boolLiteral
+factor := "("? expression ")"? | unary | not | number | boolLiteral | member
+
 number := "number"
 boolLiteral := "false" | "true"
 
-unary :=  neg_unary | pos_unary
+//member
+member := ID memberCompound | ID
+memberCompound := varTerminal memberCompound | varTerminal
+varTerminal := memberAccess | callAccess | arrayAccess
+memberAccess := "."? ID
+callAccess := "("? argList ")"?
+arrayAccess := "["? expression "]"?
+
+
+//unary
+unary := neg_unary | pos_unary
 neg_unary := "-"? factor
 pos_unary := "+"? factor
+
+//not
 not :=  "!"? factor
 
 boolArithmetic := comparisonArithmetic boolArithmeticFunc boolArithmetic | comparisonArithmetic

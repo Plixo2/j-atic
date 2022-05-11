@@ -33,6 +33,7 @@ public enum Token {
     STRUCT("struct", "struct", "(struct|struc|stru|str|st|s)"),
     NUMBER("number", "[0-9-]", "[0-9-.]+"),
     KEYWORD("keyword", "[a-zA-Z]", "\\w+"),
+    DOT(".", "\\.", "\\."),
     END_OF_FILE("EOF", "$.^", "$.^"),
     ASSIGN("=", "=", "="),
 

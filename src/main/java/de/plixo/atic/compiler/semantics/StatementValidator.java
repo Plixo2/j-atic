@@ -6,17 +6,15 @@ import de.plixo.atic.compiler.semantics.statement.SemanticStatement;
 import de.plixo.atic.compiler.semantics.type.SemanticType;
 import de.plixo.atic.exceptions.IncompatibleTypeException;
 import de.plixo.atic.exceptions.NameCollisionException;
+import de.plixo.atic.exceptions.UnknownTypeException;
 import de.plixo.atic.lexer.AutoLexer;
 import de.plixo.atic.lexer.tokenizer.TokenRecord;
+import lombok.val;
 
-import java.lang.reflect.Type;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static de.plixo.atic.compiler.semantics.SemanticHelper.assertType;
+import static de.plixo.atic.compiler.semantics.SemanticHelper.*;
 import static de.plixo.atic.compiler.semantics.type.Expression.*;
 
 public class StatementValidator {
@@ -51,14 +49,25 @@ public class StatementValidator {
 
 
     public static class ExpressionValidator {
+        static List<Namespace> namespaces;
+        static Namespace.FunctionStruct function;
+        static Map<String, SemanticType> prevDeclaredVariables;
+
         private static SemanticType getType(SemanticType preferred, Namespace.FunctionStruct function,
-                                            Map<String, Type> prevDeclaredVariables,
+                                            Map<String, SemanticType> prevDeclaredVariables,
+                                            List<Namespace> namespaces,
                                             AutoLexer.SyntaxNode<TokenRecord<Token>> expression) {
 
+            ExpressionValidator.namespaces = namespaces;
+            ExpressionValidator.function = function;
+            ExpressionValidator.prevDeclaredVariables = prevDeclaredVariables;
 
-            return null;
+            return byExpr(expression);
         }
 
+        private static SemanticType byExpr(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) {
+            return byBoolExpr(expr);
+        }
 
         private static SemanticType byBoolExpr(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) {
             if (BOOL_EXPR.isImplemented(expr)) {
@@ -89,7 +98,7 @@ public class StatementValidator {
                 final SemanticType right = byArithmetic(ARITHMETIC.same(expr));
                 if (!Primitives.integer_type.equals(left) && !Primitives.decimal_type.equals(left)) {
                     throw new IncompatibleTypeException("left side of an arithmetic expression is neither an int, nor" +
-                            " and decimal");
+                            " an decimal");
                 }
                 assertType(right, left);
                 return left;
@@ -103,7 +112,7 @@ public class StatementValidator {
                 final SemanticType right = byTerm(TERM.same(expr));
                 if (!Primitives.integer_type.equals(left) && !Primitives.decimal_type.equals(left)) {
                     throw new IncompatibleTypeException("left side of an arithmetic expression is neither an int, nor" +
-                            " and decimal");
+                            " an decimal");
                 }
                 assertType(right, left);
                 return left;
@@ -113,7 +122,60 @@ public class StatementValidator {
 
 
         private static SemanticType byFactor(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) {
-            return new SemanticType.StructType(Primitives.integer);
+            if (testNode(expr, "expression")) {
+                return byExpr(yieldNode(expr, "expression"));
+            } else if (testNode(expr, "unary")) {
+                val unary = yieldNode(expr, "unary");
+                AutoLexer.SyntaxNode<TokenRecord<Token>> neg;
+                if (testNode(expr, "neg_unary")) {
+                    neg = yieldNode(unary, "neg_unary");
+                } else {
+                    neg = yieldNode(unary, "pos_unary");
+                }
+                return byFactor(yieldNode(neg, "factor"));
+            } else if (testNode(expr, "not")) {
+                val not = yieldNode(expr, "not");
+                final SemanticType factor = byFactor(yieldNode(not, "factor"));
+                assertType(factor, Primitives.integer_type);
+                return factor;
+            } else if (testNode(expr, "number")) {
+                return Primitives.integer_type;
+            } else if (testNode(expr, "boolLiteral")) {
+                return Primitives.integer_type;
+            } else if (testNode(expr, "member")) {
+                val member = yieldNode(expr, "member");
+                final String start = getLeafData(yieldNode(member, "ID"));
+
+                if (prevDeclaredVariables.containsKey(start)) {
+                    final SemanticType semanticType = prevDeclaredVariables.get(start);
+                }
+
+                if (function.input.containsKey(start)) {
+                    final SemanticType semanticType = function.input.get(start);
+
+                    return null;
+                }
+
+                final Optional<Namespace> any = namespaces.stream().filter(namespace -> namespace.name.equals(start))
+                        .findAny();
+                if (any.isPresent()) {
+                    if (testNode(member, "memberCompound")) {
+                        val memberCompound = yieldNode(member,
+                                "memberCompound");
+                        // memberCompound.
+
+                    }
+                    // any.get().functions.stream().filter(functionStruct -> functionStruct.name.equals())
+                    return null;
+                }
+
+                throw new UnknownTypeException("Unknown reference " + start);
+            }
+            throw new UnknownTypeException("not yet implemented");
+        }
+
+        private static SemanticType getCalled() {
+
         }
     }
 }
