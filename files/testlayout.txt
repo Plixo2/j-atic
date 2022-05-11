@@ -2,17 +2,15 @@ struct a {
     int x
     int y
 }
-struct b {
-    int z
-}
 logic space {
-    fn main(int in) -> void {
-
+    fn calc(int in,decimal dec) -> int {
+        int i = 100
+        {
+            int w = 2
+        }
+        int w = 2
     }
-    fn calc(int in,decimal in) -> int {
-
+    fn getInt() -> int {
+        auto b = 100
     }
-}
-struct c {
-
 }

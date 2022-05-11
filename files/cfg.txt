@@ -9,14 +9,24 @@ declaration := Type ID
 
 logic := "logic"? Id "{"? logicCompound "}"?
 logicCompound := logicSpace logicCompound | logicSpace ||
-logicSpace := "fn"? id "("? inputList ")"? "->"? Type functionLogic
+logicSpace := "fn"? id "("? inputList ")"? "->"? Type statement
 inputList := inputTerm ","? inputList | inputTerm | |
 inputTerm := Type id
-j
-functionLogic := "{"? compound
 
-compound := "}"? | statement compound
-statement := Type ID "="? expression
+
+//statements
+statement := blockStatement | assignmentStatement | declarationStatement
+
+assignmentStatement := id "="? expression
+declarationStatement := type id "="? expression
+
+blockStatement := "{"? statementCompound "}"?
+statementCompound := statement statementCompound ||
+
+//todo
+//branchStatement := "if"
+//evaluationStatement := expression
+
 
 Type := ID
 ID := "Keyword"

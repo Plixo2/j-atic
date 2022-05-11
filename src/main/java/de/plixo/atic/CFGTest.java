@@ -1,10 +1,10 @@
 package de.plixo.atic;
 
-import de.plixo.atic.compiler.semantic.SemanticProcessor;
-import de.plixo.lexer.AutoLexer;
-import de.plixo.lexer.GrammarReader;
-import de.plixo.lexer.tokenizer.TokenRecord;
-import de.plixo.lexer.tokenizer.Tokenizer;
+import de.plixo.atic.compiler.semantics.SemanticProcessor;
+import de.plixo.atic.lexer.AutoLexer;
+import de.plixo.atic.lexer.GrammarReader;
+import de.plixo.atic.lexer.tokenizer.TokenRecord;
+import de.plixo.atic.lexer.tokenizer.Tokenizer;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,7 +40,7 @@ public class CFGTest {
         final AutoLexer.SyntaxNode<TokenRecord<Token>> in = autoLexer
                 .reverseRule(ruleSet, "In", apply);
         final long time = System.currentTimeMillis() - t1;
-        Helper.printNode(in);
+        DebugHelper.printNode(in);
         System.out.println("-> Lexer took " + time + "ms ");
         t1 = System.currentTimeMillis();
 
