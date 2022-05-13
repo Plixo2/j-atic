@@ -8,9 +8,9 @@ struct b {
 }
 logic space {
     fn calc(a in) -> int {
-        auto d = fn (a,b) -> {
+       fn(int,int -> void) func = fn (a,b) -> {
 
-        }
+       }
     }
     fn getInt(b input) -> int {
     }

@@ -75,6 +75,6 @@ boolArithmeticFunc := "&&" | "||"
 //function
 function := anonymousFunction | richFunction
 anonymousFunction := "fn"? "("? IdList ")"? "->"? statement!
-richFunction := "fn"? "("? inputList! ")"? "->"? Type statement!
+richFunction := "fn"? "("? inputList! ")"? "->"? Type! statement!
 
 IdList := ID ","?  IdList | ID ||

@@ -1,6 +1,7 @@
 package de.plixo.atic.compiler.semantics;
 
 import de.plixo.atic.Token;
+import de.plixo.atic.compiler.semantics.buckets.FunctionStruct;
 import de.plixo.atic.compiler.semantics.buckets.Namespace;
 import de.plixo.atic.compiler.semantics.buckets.Structure;
 import de.plixo.atic.compiler.semantics.statement.SemanticStatement;
@@ -29,7 +30,7 @@ public class SemanticProcessor {
         structures.add(Primitives.integer);
         structures.add(Primitives.decimal);
         structures.add(Primitives.auto);
-        structures.add(Primitives._void);
+        structures.add(Primitives.void_);
 
         structures.forEach(structure -> {
             if (strutMap.containsKey(structure.name)) {
@@ -39,7 +40,7 @@ public class SemanticProcessor {
         });
         walk("struct", "top", in, SemanticProcessor::makeMembers);
         walk("logic", "top", in, node -> namespaces.add(genNamespace(node)));
-        StatementValidator.validate(namespaces);
+        StatementValidator.validate(namespaces,strutMap);
     }
 
     private static Namespace genNamespace(AutoLexer.SyntaxNode<TokenRecord<Token>> logic) {
@@ -49,17 +50,17 @@ public class SemanticProcessor {
         return namespace;
     }
 
-    private static Namespace.FunctionStruct genFunctionStruct(AutoLexer.SyntaxNode<TokenRecord<Token>> logicSpace) {
+    private static FunctionStruct genFunctionStruct(AutoLexer.SyntaxNode<TokenRecord<Token>> logicSpace) {
         final String name = getLeafData(yieldNode(logicSpace, "ID"));
-        final SemanticType returnType = genSemanticType(yieldNode(logicSpace, "type"));
-        if (isTypeAuto(returnType)) {
+        final SemanticType returnType = genSemanticType(yieldNode(logicSpace, "type"),strutMap);
+        if (isAutoDeep(returnType)) {
             throw new UnknownTypeException("auto cant be resolved as a function return type \"" + name + "\"");
         }
         final SemanticStatement statement = genStatement(yieldNode(logicSpace, "statement"));
-        final Namespace.FunctionStruct functionStruct = new Namespace.FunctionStruct(name, returnType, statement);
+        final FunctionStruct functionStruct = new FunctionStruct(name, returnType, statement);
         walk("inputTerm", "inputList", logicSpace, node -> {
-            final SemanticType inType = genSemanticType(yieldNode(node, "type"));
-            if (isTypeAuto(returnType)) {
+            final SemanticType inType = genSemanticType(yieldNode(node, "type"),strutMap);
+            if (isAutoDeep(returnType)) {
                 throw new UnknownTypeException("auto cant be resolved as a function input \"" + name + "\"");
             }
             final String inName = getLeafData(yieldNode(node, "ID"));
@@ -82,7 +83,7 @@ public class SemanticProcessor {
             return new SemanticStatement.Block(statements);
         } else if (testNode(statement, "declarationStatement")) {
             val declarationStatement = yieldNode(statement, "declarationStatement");
-            final SemanticType type = genSemanticType(yieldNode(declarationStatement, "Type"));
+            final SemanticType type = genSemanticType(yieldNode(declarationStatement, "Type"),strutMap);
             final String name = getLeafData(yieldNode(declarationStatement, "ID"));
             val expression = yieldNode(declarationStatement, "expression");
             return new SemanticStatement.Declaration(name, type, expression);
@@ -90,7 +91,6 @@ public class SemanticProcessor {
             val assignmentStatement = yieldNode(statement, "assignmentStatement");
             val member = yieldNode(assignmentStatement, "ID");
             val expression = yieldNode(assignmentStatement, "expression");
-            //  final String name = getLeafData(member);
             return new SemanticStatement.Assignment(member, expression);
         } else
             throw new UnknownTypeException("Missing type here");
@@ -109,41 +109,14 @@ public class SemanticProcessor {
                 throw new NameCollisionException("Variable name \"" + structure.name + "\" has multiple entries in " +
                         "\"" + name + "\"");
             }
-            final SemanticType semanticType = genSemanticType(typeOfVar);
-            if (isTypeAuto(semanticType)) {
+            final SemanticType semanticType = genSemanticType(typeOfVar,strutMap);
+            if (isAutoDeep(semanticType)) {
                 throw new UnknownTypeException("auto cant be resolved on structure \"" + name + "\"");
             }
             structure.members.put(nameOfVar, semanticType);
         });
     }
 
-    private static SemanticType genSemanticType(AutoLexer.SyntaxNode<TokenRecord<Token>> type) {
-
-        if (testNode(type, "arrayType")) {
-            val arrayType = yieldNode(type, "arrayType");
-            return new SemanticType.ArrayType(genSemanticType(yieldNode(arrayType, "type")));
-        } else if (testNode(type, "functionType")) {
-            val functionType = yieldNode(type, "functionType");
-            final SemanticType returnType = genSemanticType(yieldNode(functionType, "Type"));
-
-            final List<SemanticType> types = new ArrayList<>();
-            walk("Type", "functionTypeCompound", yieldNode(functionType, "functionTypeCompound"), node -> {
-                types.add(genSemanticType(node));
-            });
-            System.out.println("accepts "+ types.size() + ": " + types);
-            System.out.println("returns " + returnType);
-
-            return new SemanticType.FunctionType(returnType,types);
-        } else if (testNode(type, "objectType")) {
-            val objectType = yieldNode(type, "objectType");
-            final String typeOfVar = getLeafData(yieldNode(objectType, "ID"));
-            if (!strutMap.containsKey(typeOfVar)) {
-                throw new UnknownTypeException("Unknown Type " + typeOfVar);
-            }
-            return new SemanticType.StructType(strutMap.get(typeOfVar));
-        }
-        return null;
-    }
 
     private static Structure genStruct(AutoLexer.SyntaxNode<TokenRecord<Token>> struct) {
         val id = yieldNode(struct, "ID");

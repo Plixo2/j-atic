@@ -5,11 +5,12 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 @RequiredArgsConstructor
 public class Structure {
     public final String name;
-    public final Map<String, SemanticType> members = new HashMap<>();
+    public final Map<String, SemanticType> members = new TreeMap<>();
 
     @Override
     public boolean equals(Object o) {

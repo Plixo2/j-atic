@@ -1,12 +1,17 @@
 package de.plixo.atic.compiler.semantics;
 
 import de.plixo.atic.Token;
+import de.plixo.atic.compiler.semantics.buckets.Structure;
 import de.plixo.atic.compiler.semantics.type.SemanticType;
 import de.plixo.atic.exceptions.UnknownTypeException;
 import de.plixo.atic.exceptions.validation.IncompatibleTypeException;
 import de.plixo.atic.lexer.AutoLexer;
 import de.plixo.atic.lexer.tokenizer.TokenRecord;
+import lombok.val;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -66,16 +71,54 @@ public class SemanticHelper {
         }
     }
 
-    public static boolean isTypeAuto(SemanticType type) {
+    public static SemanticType genSemanticType(AutoLexer.SyntaxNode<TokenRecord<Token>> type, Map<String, Structure> strutMap) {
+
+        if (testNode(type, "arrayType")) {
+            val arrayType = yieldNode(type, "arrayType");
+            return new SemanticType.ArrayType(genSemanticType(yieldNode(arrayType, "type"),strutMap));
+        } else if (testNode(type, "functionType")) {
+            val functionType = yieldNode(type, "functionType");
+            final SemanticType returnType = genSemanticType(yieldNode(functionType, "Type"),strutMap);
+
+            final List<SemanticType> types = new ArrayList<>();
+            walk("Type", "functionTypeCompound", yieldNode(functionType, "functionTypeCompound"), node -> {
+                types.add(genSemanticType(node,strutMap));
+            });
+            System.out.println("accepts "+ types.size() + ": " + types);
+            System.out.println("returns " + returnType);
+
+            return new SemanticType.FunctionType(returnType,types);
+        } else if (testNode(type, "objectType")) {
+            val objectType = yieldNode(type, "objectType");
+            final String typeOfVar = getLeafData(yieldNode(objectType, "ID"));
+            if (!strutMap.containsKey(typeOfVar)) {
+                throw new UnknownTypeException("Unknown Type " + typeOfVar);
+            }
+            return new SemanticType.StructType(strutMap.get(typeOfVar));
+        }
+        return null;
+    }
+
+
+    public static boolean isAutoDeep(SemanticType type) {
         if (type instanceof SemanticType.ArrayType) {
-            return isTypeAuto(((SemanticType.ArrayType) type).arrayObject);
+            return isAutoDeep(((SemanticType.ArrayType) type).arrayObject);
         } else if (type instanceof SemanticType.FunctionType) {
             SemanticType.FunctionType functionType = (SemanticType.FunctionType) type;
-            return isTypeAuto(functionType.output) || functionType.input.stream().anyMatch(SemanticHelper::isTypeAuto);
+            return isAutoDeep(functionType.output) || functionType.input.stream().anyMatch(SemanticHelper::isAutoDeep);
         } else if (type instanceof SemanticType.StructType) {
             SemanticType.StructType structType = (SemanticType.StructType) type;
             return structType.structure == Primitives.auto;
         }
         throw new UnknownTypeException("unknown type object");
+    }
+
+
+    public static boolean isAutoShallow(SemanticType type) {
+        if (type instanceof SemanticType.StructType) {
+            SemanticType.StructType structType = (SemanticType.StructType) type;
+            return structType.structure == Primitives.auto;
+        }
+        return false;
     }
 }

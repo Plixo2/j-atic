@@ -1,6 +1,7 @@
 package de.plixo.atic.lexer;
 
 import de.plixo.atic.exceptions.UnknownRuleException;
+import de.plixo.atic.lexer.tokenizer.TokenRecord;
 import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
@@ -39,6 +40,8 @@ public class AutoLexer<T> {
                 stream.setIndex(index);
             } else {
                 node.name = rule.name;
+                if (stream.hasEntriesLeft())
+                    node.data = stream.current();
                 return node;
             }
         }
@@ -64,11 +67,13 @@ public class AutoLexer<T> {
             } else {
                 final SyntaxNode<T> child = testRule(entry.rule, stream);
                 if (child == null) {
-                    if(entry.isConcrete) {
-                        //final T token = stream.current();
-                        //if(token instanceof )
+                    if (entry.isConcrete) {
+                        final T token = stream.current();
+                        if (token instanceof TokenRecord) {
+                            throw new UnknownRuleException("failed to capture rule " + entry.rule.name + ": " + ((TokenRecord<?>) token).from);
+                        }
+                        throw new UnknownRuleException(" failed to capture rule " + entry.rule.name);
                         //TODO here
-                        throw new UnknownRuleException(" failed to capture rule " + entry.rule.name + ": ");
                     }
                     return null;
                 }
@@ -92,6 +97,7 @@ public class AutoLexer<T> {
     public static class SyntaxNode<O> {
         public String name;
         public List<SyntaxNode<O>> list = new ArrayList<>();
+        public O data;
     }
 
     @RequiredArgsConstructor

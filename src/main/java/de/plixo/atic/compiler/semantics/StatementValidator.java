@@ -2,7 +2,9 @@ package de.plixo.atic.compiler.semantics;
 
 import de.plixo.atic.DebugHelper;
 import de.plixo.atic.Token;
+import de.plixo.atic.compiler.semantics.buckets.FunctionStruct;
 import de.plixo.atic.compiler.semantics.buckets.Namespace;
+import de.plixo.atic.compiler.semantics.buckets.Structure;
 import de.plixo.atic.compiler.semantics.statement.SemanticStatement;
 import de.plixo.atic.compiler.semantics.type.SemanticType;
 import de.plixo.atic.exceptions.NameCollisionException;
@@ -15,9 +17,7 @@ import de.plixo.atic.lexer.AutoLexer;
 import de.plixo.atic.lexer.tokenizer.TokenRecord;
 import lombok.val;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static de.plixo.atic.compiler.semantics.SemanticHelper.*;
@@ -27,25 +27,27 @@ public class StatementValidator {
 
     static List<Namespace> namespaces;
 
-    public static void validate(List<Namespace> namespaces) {
+    public static void validate(List<Namespace> namespaces, Map<String, Structure> strutMap) {
         StatementValidator.namespaces = namespaces;
         namespaces.forEach(namespace -> namespace.functions.forEach(functionStruct -> {
             final Map<String, SemanticType> nameSet = new HashMap<>();
             functionStruct.input.forEach(nameSet::put);
             AtomicInteger registerCounter = new AtomicInteger(functionStruct.input.size());
-            validateStatement(functionStruct, nameSet, functionStruct.statement, registerCounter);
+            validateStatement(functionStruct, nameSet, functionStruct.statement, strutMap, registerCounter);
         }));
         System.out.println("Validated all statement names");
     }
 
-    private static void validateStatement(Namespace.FunctionStruct function, Map<String, SemanticType> names,
+    private static void validateStatement(FunctionStruct function, Map<String, SemanticType> names,
                                           SemanticStatement statement,
+                                          Map<String, Structure> strutMap,
                                           AtomicInteger registerCounter) {
         if (statement instanceof SemanticStatement.Block) {
             SemanticStatement.Block block = (SemanticStatement.Block) statement;
             final Map<String, SemanticType> copy = new HashMap<>(names);
             AtomicInteger counterCopy = new AtomicInteger(registerCounter.intValue());
-            block.statements.forEach(subStatement -> validateStatement(function, copy, subStatement, counterCopy));
+            block.statements
+                    .forEach(subStatement -> validateStatement(function, copy, subStatement, strutMap, counterCopy));
         } else if (statement instanceof SemanticStatement.Declaration) {
             SemanticStatement.Declaration declaration = (SemanticStatement.Declaration) statement;
             declaration.register = registerCounter.getAndIncrement();
@@ -53,16 +55,12 @@ public class StatementValidator {
                 throw new NameCollisionException("\"" + declaration.name + "\" was declared twice");
             }
             final SemanticType type = ExpressionValidator
-                    .getType(declaration.type, function, names, namespaces, declaration.expression);
-            if (declaration.type instanceof SemanticType.StructType) {
-                SemanticType.StructType structType = (SemanticType.StructType) declaration.type;
-                final boolean b = structType.structure == Primitives.auto;
-                if (b) {
-                    declaration.type = type;
-                    names.put(declaration.name, declaration.type);
-                    System.out.println("Auto resolved to " + type);
-                    return;
-                }
+                    .getType(declaration.type, function, names, namespaces, strutMap, declaration.expression);
+            if (isAutoShallow(declaration.type)) {
+                declaration.type = type;
+                names.put(declaration.name, declaration.type);
+                System.out.println("Auto resolved to " + type);
+                return;
             }
             assertType(declaration.type, type);
             names.put(declaration.name, declaration.type);
@@ -73,41 +71,114 @@ public class StatementValidator {
 
     public static class ExpressionValidator {
         static List<Namespace> namespaces;
-        static Namespace.FunctionStruct function;
+        static FunctionStruct function;
         static Map<String, SemanticType> prevDeclaredVariables;
+        static SemanticType preferred;
+        static Map<String, Structure> strutMap;
 
-        public static SemanticType getType(SemanticType preferred, Namespace.FunctionStruct function,
+        public static SemanticType getType(SemanticType preferred, FunctionStruct function,
                                            Map<String, SemanticType> prevDeclaredVariables,
                                            List<Namespace> namespaces,
+                                           Map<String, Structure> strutMap,
                                            AutoLexer.SyntaxNode<TokenRecord<Token>> expression) {
 
+            ExpressionValidator.strutMap = strutMap;
+            ExpressionValidator.preferred = preferred;
             ExpressionValidator.namespaces = namespaces;
             ExpressionValidator.function = function;
             ExpressionValidator.prevDeclaredVariables = prevDeclaredVariables;
 
-            if (testNode(expression, "boolArithmetic")) {
-                return byExpr(expression);
-            } else {
-               return byFunction(expression,preferred);
-            }
+            return byExpr(expression);
         }
 
-        private static SemanticType byFunction(AutoLexer.SyntaxNode<TokenRecord<Token>> function ,
+        private static SemanticType byFunction(AutoLexer.SyntaxNode<TokenRecord<Token>> function,
                                                SemanticType preferred) {
-            val functionNode = yieldNode(function,"function");
-            if(testNode(functionNode,"anonymousFunction")) {
-                val anon = yieldNode(functionNode,"anonymousFunction");
-                walk("ID","IdList",anon,node -> {
-                   // final String name = new
-                });
-            } else {
-                val anon = yieldNode(functionNode,"richFunction");
+            val functionNode = yieldNode(function, "function");
+
+            if (preferred instanceof SemanticType.ArrayType) {
+                throw new IncompatibleTypeException("cant set a function in an array");
+            } else if (!isAutoShallow(preferred) && preferred instanceof SemanticType.StructType) {
+                throw new IncompatibleTypeException("cant set a function in an object");
             }
 
+            if (testNode(functionNode, "anonymousFunction")) {
+                if (isAutoShallow(preferred)) {
+                    throw new UnknownTypeException("auto cant be resolved for anonymous functions");
+                } else {
+                    SemanticType.FunctionType functionType = (SemanticType.FunctionType) preferred;
+                    val anonymousFunction = yieldNode(functionNode, "anonymousFunction");
+                    final AtomicInteger count = new AtomicInteger();
+                    final Map<String, SemanticType> types = new TreeMap<>();
+                    walk("ID", "IdList", anonymousFunction, node -> {
+                        final String name = getLeafData(node);
+                        int counter = count.getAndIncrement();
+                        if (prevDeclaredVariables.containsKey(name) || ExpressionValidator.function.input
+                                .containsKey(name)) {
+                            throw new NameCollisionException("identifier \"" + name + "\" has multiple entries");
+                        }
+                        if (counter > functionType.input.size()) {
+                            throw new TooMuchArgumentsException("aaaaa");
+                        }
+                        types.put(name, functionType.input.get(counter));
+                        //TODO evaluate function
+                    });
+                    if (count.get() != functionType.input.size()) {
+                        throw new MissingArgumentsException("bbbbbb");
+                    }
+                    final ArrayList<SemanticType> typeList = new ArrayList<>();
+                    types.forEach((k, v) -> typeList.add(v));
+                    //assertType(functionType.output, functionType.output);
+
+                    for (int i = 0; i < functionType.input.size(); i++) {
+                        assertType(functionType.input.get(i), typeList.get(0));
+                    }
+                    return functionType;
+                }
+            } else {
+                val richFunction = yieldNode(functionNode, "richFunction");
+                final SemanticType returnType = genSemanticType(yieldNode(richFunction, "Type"), strutMap);
+                final AtomicInteger count = new AtomicInteger();
+                final Map<String, SemanticType> types = new TreeMap<>();
+                walk("inputTerm", "inputList", richFunction, node -> {
+                    val type = yieldNode(node, "Type");
+                    final SemanticType semanticType = genSemanticType(type, strutMap);
+                    final String name = getLeafData(yieldNode(node, "ID"));
+                    int counter = count.getAndIncrement();
+                    if (prevDeclaredVariables.containsKey(name) || ExpressionValidator.function.input
+                            .containsKey(name)) {
+                        throw new NameCollisionException("identifier \"" + name + "\" has multiple entries");
+                    }
+                    types.put(name, semanticType);
+                    //TODO evaluate function
+                });
+                final ArrayList<SemanticType> typeList = new ArrayList<>();
+                types.forEach((k, v) -> typeList.add(v));
+                if (!isAutoShallow(preferred)) {
+                    SemanticType.FunctionType functionType = (SemanticType.FunctionType) preferred;
+                    if (count.get() > functionType.input.size()) {
+                        throw new TooMuchArgumentsException("aaaaa");
+                    } else if (count.get() < functionType.input.size()) {
+                        throw new MissingArgumentsException("bbbbbb");
+                    } else {
+                        assertType(functionType.output, returnType);
+                        for (int i = 0; i < functionType.input.size(); i++) {
+                            assertType(functionType.input.get(i), typeList.get(0));
+                        }
+                    }
+                    return functionType;
+                } else {
+                    return new SemanticType.FunctionType(returnType,
+                            typeList);
+                }
+            }
         }
 
         private static SemanticType byExpr(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) {
-            return byBoolExpr(yieldNode(expr, "boolArithmetic"));
+            if (testNode(expr, "boolArithmetic")) {
+                return byBoolExpr(expr);
+            } else {
+                return byFunction(expr, preferred);
+            }
         }
 
         private static SemanticType byBoolExpr(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) {
