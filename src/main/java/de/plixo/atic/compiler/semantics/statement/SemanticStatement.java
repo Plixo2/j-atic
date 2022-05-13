@@ -14,11 +14,20 @@ public abstract class SemanticStatement {
         final AutoLexer.SyntaxNode<TokenRecord<Token>> expression;
     }
 
-    @RequiredArgsConstructor
     public static class Declaration extends SemanticStatement {
         public final String name;
-        public final SemanticType type;
+        //not final for "auto" keyword
+        public SemanticType type;
+        //not final, register will be set later
         public int register = -1;
+
+        public Declaration(String name, SemanticType type,
+                           AutoLexer.SyntaxNode<TokenRecord<Token>> expression) {
+            this.name = name;
+            this.type = type;
+            this.expression = expression;
+        }
+
         public final AutoLexer.SyntaxNode<TokenRecord<Token>> expression;
     }
 

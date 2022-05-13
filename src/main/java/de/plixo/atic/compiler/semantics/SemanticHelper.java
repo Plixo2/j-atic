@@ -2,7 +2,8 @@ package de.plixo.atic.compiler.semantics;
 
 import de.plixo.atic.Token;
 import de.plixo.atic.compiler.semantics.type.SemanticType;
-import de.plixo.atic.exceptions.IncompatibleTypeException;
+import de.plixo.atic.exceptions.UnknownTypeException;
+import de.plixo.atic.exceptions.validation.IncompatibleTypeException;
 import de.plixo.atic.lexer.AutoLexer;
 import de.plixo.atic.lexer.tokenizer.TokenRecord;
 
@@ -58,5 +59,23 @@ public class SemanticHelper {
         if(!equals) {
             throw new IncompatibleTypeException(a + " and " + b + " are not the same");
         }
+    }
+    public static void assertTypeNumber(SemanticType a) {
+        if(!a.equals(Primitives.integer_type) && !a.equals(Primitives.decimal_type)) {
+            throw new IncompatibleTypeException(a + " is not a int or an decimal");
+        }
+    }
+
+    public static boolean isTypeAuto(SemanticType type) {
+        if (type instanceof SemanticType.ArrayType) {
+            return isTypeAuto(((SemanticType.ArrayType) type).arrayObject);
+        } else if (type instanceof SemanticType.FunctionType) {
+            SemanticType.FunctionType functionType = (SemanticType.FunctionType) type;
+            return isTypeAuto(functionType.output) || functionType.input.stream().anyMatch(SemanticHelper::isTypeAuto);
+        } else if (type instanceof SemanticType.StructType) {
+            SemanticType.StructType structType = (SemanticType.StructType) type;
+            return structType.structure == Primitives.auto;
+        }
+        throw new UnknownTypeException("unknown type object");
     }
 }

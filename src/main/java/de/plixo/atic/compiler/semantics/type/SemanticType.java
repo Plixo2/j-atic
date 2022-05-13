@@ -25,7 +25,7 @@ public abstract class SemanticType {
 
         @Override
         public String toString() {
-            return "Array [" + arrayObject.toString() + "]";
+            return "Array[" + arrayObject.toString() + "]";
         }
 
     }
@@ -50,7 +50,7 @@ public abstract class SemanticType {
 
         @Override
         public String toString() {
-            return "Function<" + input.toString() + "> -> " + output.toString();
+            return "Function[" + input.toString() + " -> " + output.toString() + "]";
         }
 
     }
@@ -71,7 +71,7 @@ public abstract class SemanticType {
 
         @Override
         public String toString() {
-            return "Struct{" + structure.name + "}";
+            return "Struct[" + structure.name + "]";
         }
 
 

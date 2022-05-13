@@ -35,15 +35,15 @@ public class GrammarReader {
             }
 
             final Rule rule = genRule(stream, (name, ref) -> onFinalResolve.add(() -> {
-                final ArrayList<Rule> rules1 = new ArrayList<>(rules);
-                rules1.removeIf(ruleRef -> !ruleRef.name.equalsIgnoreCase(name));
-                if (rules1.size() > 1) {
+                final ArrayList<Rule> nameRuleSet = new ArrayList<>(rules);
+                nameRuleSet.removeIf(ruleRef -> !ruleRef.name.equalsIgnoreCase(name));
+                if (nameRuleSet.size() > 1) {
                     throw new UnknownRuleException("Found more than one definition of rule \"" + name +
                             "\"");
-                } else if (rules1.size() == 0) {
+                } else if (nameRuleSet.size() == 0) {
                     throw new UnknownRuleException("Unknown rule \"" + name + "\"");
                 }
-                ref.rule = rules1.get(0);
+                ref.rule = nameRuleSet.get(0);
             }));
             rules.add(rule);
         }
@@ -69,13 +69,17 @@ public class GrammarReader {
                     entries.add(ruleEntry);
                     delayedResolve.accept(data, ruleEntry);
                     stream.consume();
+                    if(stream.hasEntriesLeft() && testToken(stream, CONCRETE)) {
+                        stream.consume();
+                        ruleEntry.isConcrete = true;
+                    }
                 } else if (testToken(stream, LITERAL)) {
                     final Entry e = genEntry(data.substring(1, data.length() - 1));
                     entries.add(e);
                     stream.consume();
                     if(stream.hasEntriesLeft() && testToken(stream, HIDDEN)) {
                         stream.consume();
-                        e.hidden = true;
+                        e.isHidden = true;
                     }
                 } else {
                     throw new UnexpectedTokenException("Expected keyword or literal, but got " + stream
@@ -141,7 +145,8 @@ public class GrammarReader {
     static class Entry {
         String literal = null;
         Rule rule = null;
-        boolean hidden = false;
+        boolean isHidden = false;
+        boolean isConcrete = false;
 
         boolean isLiteral() {
             return literal != null;
@@ -165,6 +170,7 @@ public class GrammarReader {
         LITERAL("\"", "((\\\"[^\\\"]*\\\")|(\\\"[^\\\"]*))"),
         OR("\\|", "\\|"),
         HIDDEN("\\?", "\\?"),
+        CONCRETE("\\!", "\\!"),
         COMMENT("//", "//.*"),
 
 

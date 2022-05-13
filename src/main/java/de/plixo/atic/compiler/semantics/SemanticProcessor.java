@@ -38,21 +38,7 @@ public class SemanticProcessor {
             strutMap.put(structure.name, structure);
         });
         walk("struct", "top", in, SemanticProcessor::makeMembers);
-
-        System.out.println("Generated:");
-        structures.forEach(System.out::println);
-
         walk("logic", "top", in, node -> namespaces.add(genNamespace(node)));
-
-        /*
-        System.out.println("Namespaces:");
-        namespaces.forEach(namespace -> {
-            System.out.println(namespace.name);
-            namespace.functions.forEach(func -> System.out
-                    .println(func.name + ": " + func.input.toString() + " -> " + func.output));
-        });
-        */
-
         StatementValidator.validate(namespaces);
     }
 
@@ -132,11 +118,31 @@ public class SemanticProcessor {
     }
 
     private static SemanticType genSemanticType(AutoLexer.SyntaxNode<TokenRecord<Token>> type) {
-        final String typeOfVar = getLeafData(yieldNode(type, "ID"));
-        if (!strutMap.containsKey(typeOfVar)) {
-            throw new UnknownTypeException("Unknown Type " + typeOfVar);
+
+        if (testNode(type, "arrayType")) {
+            val arrayType = yieldNode(type, "arrayType");
+            return new SemanticType.ArrayType(genSemanticType(yieldNode(arrayType, "type")));
+        } else if (testNode(type, "functionType")) {
+            val functionType = yieldNode(type, "functionType");
+            final SemanticType returnType = genSemanticType(yieldNode(functionType, "Type"));
+
+            final List<SemanticType> types = new ArrayList<>();
+            walk("Type", "functionTypeCompound", yieldNode(functionType, "functionTypeCompound"), node -> {
+                types.add(genSemanticType(node));
+            });
+            System.out.println("accepts "+ types.size() + ": " + types);
+            System.out.println("returns " + returnType);
+
+            return new SemanticType.FunctionType(returnType,types);
+        } else if (testNode(type, "objectType")) {
+            val objectType = yieldNode(type, "objectType");
+            final String typeOfVar = getLeafData(yieldNode(objectType, "ID"));
+            if (!strutMap.containsKey(typeOfVar)) {
+                throw new UnknownTypeException("Unknown Type " + typeOfVar);
+            }
+            return new SemanticType.StructType(strutMap.get(typeOfVar));
         }
-        return new SemanticType.StructType(strutMap.get(typeOfVar));
+        return null;
     }
 
     private static Structure genStruct(AutoLexer.SyntaxNode<TokenRecord<Token>> struct) {
@@ -145,17 +151,5 @@ public class SemanticProcessor {
         return new Structure(name);
     }
 
-    private static boolean isTypeAuto(SemanticType type) {
-        if (type instanceof SemanticType.ArrayType) {
-            return isTypeAuto(((SemanticType.ArrayType) type).arrayObject);
-        } else if (type instanceof SemanticType.FunctionType) {
-            SemanticType.FunctionType functionType = (SemanticType.FunctionType) type;
-            return isTypeAuto(functionType) || functionType.input.stream().anyMatch(SemanticProcessor::isTypeAuto);
-        } else if (type instanceof SemanticType.StructType) {
-            SemanticType.StructType structType = (SemanticType.StructType) type;
-            return structType.structure == Primitives.auto;
-        }
-        throw new UnknownTypeException("unknown type object");
-    }
 
 }

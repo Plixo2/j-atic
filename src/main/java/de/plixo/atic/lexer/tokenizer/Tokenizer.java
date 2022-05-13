@@ -24,6 +24,7 @@ public class Tokenizer {
                 throw new FailedTokenCaptureException("Failed to capture start token of " + subString);
             }
             capturedChars.append(text.charAt(charCount));
+            final int countCopy = charCount;
             charCount += 1;
             while (charCount < length) {
                 capturedChars.append(text.charAt(charCount));
@@ -34,7 +35,7 @@ public class Tokenizer {
                     break;
                 }
             }
-            records.add(new TokenRecord<>(matchedToken.get(), capturedChars.toString()));
+            records.add(new TokenRecord<>(matchedToken.get(), capturedChars.toString(),countCopy,charCount));
             capturedChars.setLength(0);
         }
 

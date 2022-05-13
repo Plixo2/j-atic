@@ -27,6 +27,7 @@ public enum Token {
     EQUALS("==", "==", "(==|=)"),
     NON_EQUALS("!=", "!=", "(!=|!)"),
     FUNCTION("fn", "fn", "(fn|f)"),
+    LIST("list", "list", "(list|lis|li|l)"),
     TRUE("true", "true", "(true|tru|tr|t)"),
     FALSE("false", "false", "(false|fals|fal|fa|f)"),
     logic("logic", "logic", "(logic|logi|log|lo|l)"),

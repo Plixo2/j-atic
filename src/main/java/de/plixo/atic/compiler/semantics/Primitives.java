@@ -5,7 +5,7 @@ import de.plixo.atic.compiler.semantics.type.SemanticType;
 
 public class Primitives {
     public static Structure integer = new Structure("int");
-    public static Structure decimal = new Structure("decimal");
+    public static Structure decimal = new Structure("double");
     public static Structure _void = new Structure("void");
     public static Structure auto = new Structure("auto");
 

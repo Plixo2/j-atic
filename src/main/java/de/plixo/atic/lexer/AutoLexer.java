@@ -57,13 +57,19 @@ public class AutoLexer<T> {
                 if (!tokenTest.test(entry.literal, token)) {
                     return null;
                 }
-                if (!entry.hidden) {
+                if (!entry.isHidden) {
                     nodes.add(genLeaf(token));
                 }
                 stream.consume();
             } else {
                 final SyntaxNode<T> child = testRule(entry.rule, stream);
                 if (child == null) {
+                    if(entry.isConcrete) {
+                        //final T token = stream.current();
+                        //if(token instanceof )
+                        //TODO here
+                        throw new UnknownRuleException(" failed to capture rule " + entry.rule.name + ": ");
+                    }
                     return null;
                 }
                 nodes.add(child);

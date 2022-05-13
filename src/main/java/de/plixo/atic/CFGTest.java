@@ -34,7 +34,7 @@ public class CFGTest {
         apply.removeIf(f -> f.token == Token.WHITESPACE);
         System.out.println("-> Tokenizer took " + (System.currentTimeMillis() - t1) + "ms ");
         t1 = System.currentTimeMillis();
-        apply.add(new TokenRecord<>(Token.END_OF_FILE,"END OF FILE"));
+        apply.add(new TokenRecord<>(Token.END_OF_FILE,"END OF FILE",fileInput.length(),fileInput.length()));
         final AutoLexer<TokenRecord<Token>> autoLexer =
                 new AutoLexer<>((string, token) -> token.token.alias.equalsIgnoreCase(string));
         final AutoLexer.SyntaxNode<TokenRecord<Token>> in = autoLexer

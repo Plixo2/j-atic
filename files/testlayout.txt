@@ -1,16 +1,17 @@
 struct a {
-    int x
-    int y
+    <int> x
+    <double> d
+    fn (<double>,int -> void) func
+}
+struct b {
+    int i
 }
 logic space {
-    fn calc(int in,decimal dec) -> int {
-        int i = 100
-        {
-            int w = 2
+    fn calc(a in) -> int {
+        auto d = fn (a,b) -> {
+
         }
-        int w = 2
     }
-    fn getInt() -> int {
-        auto b = a.b()
+    fn getInt(b input) -> int {
     }
 }

@@ -2,14 +2,15 @@ In := top
 
 top := struct top | logic top | "eof"
 
+
 struct := "struct"? ID "{"? declarationCompound "}"?
-declarationCompound := declaration declarationCompound ||
-declaration := Type ID
+declarationCompound := declaration declarationCompound! ||
+declaration := Type ID!
 
 
 logic := "logic"? Id "{"? logicCompound "}"?
 logicCompound := logicSpace logicCompound | logicSpace ||
-logicSpace := "fn"? id "("? inputList ")"? "->"? Type statement
+logicSpace := "fn"? id "("? inputList ")"? "->"? Type statement!
 inputList := inputTerm ","? inputList | inputTerm ||
 inputTerm := Type id
 
@@ -18,8 +19,8 @@ argList := expression ","?  argList | expression ||
 //statements
 statement := blockStatement | assignmentStatement | declarationStatement
 
-assignmentStatement := id "="? expression
-declarationStatement := type id "="? expression
+assignmentStatement := id "="? expression!
+declarationStatement := type id "="? expression!
 
 blockStatement := "{"? statementCompound "}"?
 statementCompound := statement statementCompound ||
@@ -29,13 +30,17 @@ statementCompound := statement statementCompound ||
 //evaluationStatement := expression
 
 //type
-Type := ID
+Type := arrayType | functionType | objectType
+arrayType := "<"? Type ">"?
+functionType := "fn"? "("? functionTypeCompound "->"? Type ")"?
+functionTypeCompound := Type ","? functionTypeCompound! | Type ||
+objectType := ID
 
 
 ID := "Keyword"
 
 //expression here
-expression := boolArithmetic
+expression := function | boolArithmetic!
 factor := "("? expression ")"? | unary | not | number | boolLiteral | member
 
 number := "number"
@@ -66,3 +71,10 @@ termFunc := "*" | "/"
 arithmeticFunc := "+" | "-"
 comparisonArithmeticFunc := ">" | ">=" | "<" | "<=" | "==" | "!="
 boolArithmeticFunc := "&&" | "||"
+
+//function
+function := anonymousFunction | richFunction
+anonymousFunction := "fn"? "("? IdList ")"? "->"? statement!
+richFunction := "fn"? "("? inputList! ")"? "->"? Type statement!
+
+IdList := ID ","?  IdList | ID ||
