@@ -20,10 +20,10 @@ public abstract class SemanticStatement {
         public SemanticType type;
         //not final, register will be set later
         public int register = -1;
-        public final SemanticExpression expression;
+        public final AutoLexer.SyntaxNode<TokenRecord<Token>> expression;
 
         public Declaration(String name, SemanticType type,
-                           SemanticExpression expression) {
+                           AutoLexer.SyntaxNode<TokenRecord<Token>> expression) {
             this.name = name;
             this.type = type;
             this.expression = expression;
@@ -34,12 +34,12 @@ public abstract class SemanticStatement {
     @RequiredArgsConstructor
     public static class Assignment extends SemanticStatement {
         final AutoLexer.SyntaxNode<TokenRecord<Token>> member;
-        final SemanticExpression expression;
+        final AutoLexer.SyntaxNode<TokenRecord<Token>> expression;
     }
 
     @RequiredArgsConstructor
     public static class Branch extends SemanticStatement {
-        final SemanticExpression expression;
+        final AutoLexer.SyntaxNode<TokenRecord<Token>> expression;
         final SemanticStatement statement;
         final SemanticStatement alternative;
     }
