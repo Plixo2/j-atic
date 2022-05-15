@@ -10,7 +10,6 @@ import de.plixo.atic.compiler.semantics.n.exceptions.NameCollisionException;
 import de.plixo.atic.compiler.semantics.n.exceptions.RegionException;
 import de.plixo.atic.compiler.semantics.n.exceptions.UnknownTypeException;
 import de.plixo.atic.compiler.semantics.n.exceptions.UnresolvedAutoException;
-import de.plixo.atic.compiler.semantics.statement.SemanticExpression;
 import de.plixo.atic.compiler.semantics.statement.SemanticStatement;
 import de.plixo.atic.compiler.semantics.type.SemanticType;
 import de.plixo.atic.lexer.AutoLexer;
@@ -124,14 +123,12 @@ public class SemanticAnalysis {
         } else if (testNode(statement, "assignmentStatement")) {
             val assignmentStatement = foundNode;
             val member = getNode(assignmentStatement, "ID");
-            val expression =  getNode(assignmentStatement, "expression");
+            val expression = getNode(assignmentStatement, "expression");
             return new SemanticStatement.Assignment(member, expression);
         } else
             throw new NullPointerException();
         //TODO make branches statement, evaluation statement
     }
-
-
 
 
 }

@@ -4,6 +4,7 @@ import de.plixo.atic.Token;
 import de.plixo.atic.compiler.semantics.Primitives;
 import de.plixo.atic.compiler.semantics.buckets.CompilationUnit;
 import de.plixo.atic.compiler.semantics.n.exceptions.RegionException;
+import de.plixo.atic.compiler.semantics.n.exceptions.UnexpectedTypeException;
 import de.plixo.atic.compiler.semantics.n.exceptions.UnknownTypeException;
 import de.plixo.atic.compiler.semantics.type.SemanticType;
 import de.plixo.atic.lexer.AutoLexer;
@@ -12,7 +13,7 @@ import lombok.val;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 
 public class SemanticAnalysisHelper {
 
@@ -42,11 +43,11 @@ public class SemanticAnalysisHelper {
 
 
     public static String getId(AutoLexer.SyntaxNode<TokenRecord<Token>> id) {
-       val identifier = getNode(id, "ID");
+        val identifier = getNode(id, "ID");
         return getLeafData(identifier);
     }
 
-    private static String getLeafData(AutoLexer.SyntaxNode<TokenRecord<Token>> in) {
+    public static String getLeafData(AutoLexer.SyntaxNode<TokenRecord<Token>> in) {
         final AutoLexer.SyntaxNode<TokenRecord<Token>> node = in.list.get(0);
         AutoLexer<TokenRecord<Token>>.LeafNode leafNode =
                 (AutoLexer<TokenRecord<Token>>.LeafNode) node;
@@ -95,24 +96,36 @@ public class SemanticAnalysisHelper {
 
         if (testNode(type, "arrayType")) {
             val arrayType = getNode(type, "arrayType");
-            return new SemanticType.ArrayType(genSemanticType(getNode(arrayType, "type"),unit));
+            return new SemanticType.ArrayType(genSemanticType(getNode(arrayType, "type"), unit));
         } else if (testNode(type, "functionType")) {
             val functionType = getNode(type, "functionType");
-            final SemanticType returnType = genSemanticType(getNode(functionType, "Type"),unit);
+            final SemanticType returnType = genSemanticType(getNode(functionType, "Type"), unit);
             final List<SemanticType> types = new ArrayList<>();
             walk("Type", "functionTypeCompound", getNode(functionType, "functionTypeCompound"), node -> {
-                types.add(genSemanticType(node,unit));
+                types.add(genSemanticType(node, unit));
             });
-            return new SemanticType.FunctionType(returnType,types);
+            return new SemanticType.FunctionType(returnType, types);
         } else if (testNode(type, "objectType")) {
             val objectType = getNode(type, "objectType");
             final String typeOfVar = getId(objectType);
             if (!unit.containsStruct(typeOfVar)) {
-                throw new UnknownTypeException(typeOfVar,objectType.data.from);
+                throw new UnknownTypeException(typeOfVar, objectType.data.from);
             }
             return new SemanticType.StructType(unit.getStruct(typeOfVar));
         }
         return null;
     }
 
+    public static void assertType(SemanticType a, SemanticType b, int region) throws RegionException {
+        final boolean equals = Objects.equals(a, b);
+        if (!equals) {
+            throw new UnexpectedTypeException(a + " and " + b + " are not the same", region);
+        }
+    }
+
+    public static void assertTypeNumber(SemanticType a, int region) throws RegionException {
+        if (!a.equals(Primitives.integer_type) && !a.equals(Primitives.decimal_type)) {
+            throw new UnexpectedTypeException(a + " is not a int or an decimal", region);
+        }
+    }
 }

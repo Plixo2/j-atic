@@ -3,7 +3,6 @@ package de.plixo.atic.compiler.semantics.buckets;
 import de.plixo.atic.compiler.semantics.type.SemanticType;
 import lombok.RequiredArgsConstructor;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 

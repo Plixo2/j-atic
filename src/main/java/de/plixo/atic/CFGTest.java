@@ -1,6 +1,5 @@
 package de.plixo.atic;
 
-import de.plixo.atic.compiler.semantics.SemanticProcessor;
 import de.plixo.atic.lexer.AutoLexer;
 import de.plixo.atic.lexer.GrammarReader;
 import de.plixo.atic.lexer.tokenizer.TokenRecord;

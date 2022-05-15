@@ -5,7 +5,7 @@ import de.plixo.atic.lexer.AutoLexer;
 import de.plixo.atic.lexer.tokenizer.TokenRecord;
 import lombok.RequiredArgsConstructor;
 
-import static de.plixo.atic.compiler.semantics.SemanticHelper.*;
+import static de.plixo.atic.compiler.semantics.n.SemanticAnalysisHelper.*;
 
 @RequiredArgsConstructor
 public enum Expression {
@@ -23,15 +23,15 @@ public enum Expression {
         return isImplemented(record, this.function);
     }
     public AutoLexer.SyntaxNode<TokenRecord<Token>> next(AutoLexer.SyntaxNode<TokenRecord<Token>> record) {
-        return yieldNode(record,defaultNext);
+        return getNode(record,defaultNext);
     }
 
     public String function(AutoLexer.SyntaxNode<TokenRecord<Token>> record) {
-        return getLeafData(yieldNode(record,function));
+        return getLeafData(getNode(record,function));
     }
 
     public AutoLexer.SyntaxNode<TokenRecord<Token>> same(AutoLexer.SyntaxNode<TokenRecord<Token>> record) {
-        return yieldNode(record,name);
+        return getNode(record,name);
     }
 
     public Expression getNext() {
