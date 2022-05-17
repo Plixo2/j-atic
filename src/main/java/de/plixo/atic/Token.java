@@ -32,6 +32,7 @@ public enum Token {
     FALSE("false", "false", "(false|fals|fal|fa|f)"),
     logic("logic", "logic", "(logic|logi|log|lo|l)"),
     STRUCT("struct", "struct", "(struct|struc|stru|str|st|s)"),
+    RETURN("return", "return", "(return|retur|retu|ret|re|r)"),
     NUMBER("number", "[0-9-]", "[0-9-.]+"),
     KEYWORD("keyword", "[a-zA-Z]", "\\w+"),
     DOT(".", "\\.", "\\."),

@@ -1,5 +1,6 @@
 package de.plixo.atic.compiler.semantics.type;
 
+import de.plio.nightlist.NightList;
 import de.plixo.atic.compiler.semantics.buckets.Structure;
 import lombok.RequiredArgsConstructor;
 
@@ -34,7 +35,7 @@ public abstract class SemanticType {
     @RequiredArgsConstructor
     public static class FunctionType extends SemanticType {
         public final SemanticType output;
-        public final List<SemanticType> input;
+        public final NightList<SemanticType> input;
 
 
         @Override

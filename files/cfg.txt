@@ -10,24 +10,26 @@ declaration := Type ID!
 
 logic := "logic"? Id "{"? logicCompound "}"?
 logicCompound := logicSpace logicCompound | logicSpace ||
-logicSpace := "fn"? id "("? inputList ")"? "->"? Type statement!
+logicSpace := id "="? richFunction
 inputList := inputTerm ","? inputList | inputTerm ||
 inputTerm := Type id
 
 argList := expression ","?  argList | expression ||
 
 //statements
-statement := blockStatement | assignmentStatement | declarationStatement
+statement := blockStatement | assignmentStatement | declarationStatement | returnStatement | evaluationStatement
 
-assignmentStatement := id "="? expression!
+assignmentStatement := member "="? expression!
 declarationStatement := type id "="? expression!
 
 blockStatement := "{"? statementCompound "}"?
 statementCompound := statement statementCompound ||
 
+returnStatement := "return"? expression
+evaluationStatement := expression
+
 //todo
 //branchStatement := "if"
-//evaluationStatement := expression
 
 //type
 Type := arrayType | functionType | objectType
@@ -40,7 +42,7 @@ objectType := ID
 ID := "Keyword"
 
 //expression here
-expression := function | boolArithmetic!
+expression := function | boolArithmetic
 factor := "("? expression ")"? | unary | not | number | boolLiteral | member
 
 number := "number"
@@ -63,10 +65,10 @@ pos_unary := "+"? factor
 //not
 not :=  "!"? factor
 
-boolArithmetic := comparisonArithmetic boolArithmeticFunc boolArithmetic | comparisonArithmetic
-comparisonArithmetic := arithmetic comparisonArithmeticFunc comparisonArithmetic | arithmetic
-arithmetic := term arithmeticFunc arithmetic | term
-term := factor termFunc term | factor
+boolArithmetic := comparisonArithmetic boolArithmeticFunc boolArithmetic! | comparisonArithmetic
+comparisonArithmetic := arithmetic comparisonArithmeticFunc comparisonArithmetic! | arithmetic
+arithmetic := term arithmeticFunc arithmetic! | term
+term := factor termFunc term! | factor
 termFunc := "*" | "/"
 arithmeticFunc := "+" | "-"
 comparisonArithmeticFunc := ">" | ">=" | "<" | "<=" | "==" | "!="

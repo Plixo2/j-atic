@@ -1,17 +1,20 @@
-struct a {
-    <int> x
-    <double> d
-    fn (<double>,int -> void) func
-}
-struct b {
-    int i
-}
 logic space {
-    fn calc(a in) -> int {
-       fn(int,int -> void) func = fn (a,b) -> {
+    name = fn (int input,double d,<fn(int->void)> sum) -> int {
+        auto o = sum
+        int intindex = (100 * 100 - 10)
+        o[0](intindex)
+        auto claa = intindex /2
+        claa = claa + 1
 
-       }
-    }
-    fn getInt(b input) -> int {
+        auto func = o[intindex]
+        func(claa)
+        func = fn(i) -> {
+            auto loca = i * 10
+        }
+
+        auto test = func(1000/10)
+
+
+        return input
     }
 }

@@ -11,13 +11,12 @@ import java.util.List;
 public abstract class SemanticStatement {
     @RequiredArgsConstructor
     public static class Evaluation extends SemanticStatement {
-        final AutoLexer.SyntaxNode<TokenRecord<Token>> expression;
+        public final AutoLexer.SyntaxNode<TokenRecord<Token>> expression;
     }
 
     @RequiredArgsConstructor
     public static class Return extends SemanticStatement {
         public final AutoLexer.SyntaxNode<TokenRecord<Token>> expression;
-        public final SemanticType type;
     }
 
     public static class Declaration extends SemanticStatement {
@@ -39,8 +38,8 @@ public abstract class SemanticStatement {
 
     @RequiredArgsConstructor
     public static class Assignment extends SemanticStatement {
-        final AutoLexer.SyntaxNode<TokenRecord<Token>> member;
-        final AutoLexer.SyntaxNode<TokenRecord<Token>> expression;
+       public final AutoLexer.SyntaxNode<TokenRecord<Token>> member;
+       public final AutoLexer.SyntaxNode<TokenRecord<Token>> expression;
     }
 
     @RequiredArgsConstructor

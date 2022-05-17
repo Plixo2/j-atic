@@ -13,6 +13,7 @@ public class Primitives {
     public static SemanticType integer_type = new SemanticType.StructType(integer);
     public static SemanticType decimal_type = new SemanticType.StructType(integer);
     public static SemanticType void_type = new SemanticType.StructType(integer);
+    public static SemanticType auto_type = new SemanticType.StructType(auto);
 
 
 

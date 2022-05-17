@@ -1,33 +1,34 @@
 package de.plixo.atic.compiler.semantics.n;
 
+import de.plixo.atic.compiler.semantics.Primitives;
 import de.plixo.atic.compiler.semantics.buckets.FunctionCompilationUnit;
 import de.plixo.atic.compiler.semantics.n.exceptions.NameCollisionException;
 import de.plixo.atic.compiler.semantics.n.exceptions.RegionException;
 import de.plixo.atic.compiler.semantics.statement.SemanticStatement;
 import de.plixo.atic.compiler.semantics.type.SemanticType;
+import lombok.RequiredArgsConstructor;
+import lombok.val;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static de.plixo.atic.compiler.semantics.n.SemanticAnalysisHelper.assertType;
-import static de.plixo.atic.compiler.semantics.n.SemanticAnalysisHelper.isAutoShallow;
-
+@RequiredArgsConstructor
 public class SemanticStatementValidator {
 
 
-    private static FunctionCompilationUnit functionUnit;
-    private static int maxRegisters = 0;
+    final SemanticStatement statement;
+    final FunctionCompilationUnit functionUnit;
+    int maxRegisters;
 
-    public static void validate(SemanticStatement statement, FunctionCompilationUnit functionUnit) throws RegionException {
-        SemanticStatementValidator.functionUnit = functionUnit;
-        SemanticStatementValidator.maxRegisters = 0;
+    public void validate() {
+        maxRegisters = 0;
         validateStatement(statement, functionUnit.function.output, new AtomicInteger());
         functionUnit.maxRegisters = maxRegisters;
     }
 
-    private static void validateStatement(SemanticStatement statement, SemanticType returnType,
-                                          AtomicInteger registerCount) throws RegionException {
+    private void validateStatement(SemanticStatement statement, SemanticType returnType,
+                                   AtomicInteger registerCount) throws RegionException {
         maxRegisters = Math.max(maxRegisters, registerCount.get());
         if (statement instanceof SemanticStatement.Block) {
             SemanticStatement.Block block = (SemanticStatement.Block) statement;
@@ -43,24 +44,24 @@ public class SemanticStatementValidator {
             if (functionUnit.declaredVariables.containsKey(declaration.name)) {
                 throw new NameCollisionException(declaration.name, declaration.expression.data.from);
             }
-            final SemanticType type = SemanticExpressionValidator
-                    .validate(declaration.expression, functionUnit, declaration.type);
-
-            if (isAutoShallow(declaration.type)) {
-                declaration.type = type;
-
-                functionUnit.declaredVariables.put(declaration.name, declaration.type);
-                System.out.println("Auto resolved to " + type);
-                return;
-            }
-            assertType(declaration.type, type, declaration.expression.data.from);
+            declaration.type = new SemanticExpressionValidator(functionUnit).resolve(declaration.expression,
+                    declaration.type);
             functionUnit.declaredVariables.put(declaration.name, declaration.type);
         } else if (statement instanceof SemanticStatement.Return) {
             SemanticStatement.Return aReturn = (SemanticStatement.Return) statement;
-            final SemanticType type = SemanticExpressionValidator
-                    .validate(aReturn.expression, functionUnit, aReturn.type);
-            //TODO make grammer and validate left and right
+            functionUnit.function.output = new SemanticExpressionValidator(functionUnit).resolve(aReturn.expression,
+                    functionUnit.function.output);
+        } else if (statement instanceof SemanticStatement.Evaluation) {
+            SemanticStatement.Evaluation evaluation = (SemanticStatement.Evaluation) statement;
+            new SemanticExpressionValidator(functionUnit).resolve(evaluation.expression, Primitives.auto_type);
+        } else if (statement instanceof SemanticStatement.Assignment) {
+            SemanticStatement.Assignment assignment = (SemanticStatement.Assignment) statement;
+            val semanticExpressionValidator =
+                    new SemanticExpressionValidator(functionUnit);
+            final SemanticType member = semanticExpressionValidator.resolveMember(assignment.member);
+            final SemanticType validate = semanticExpressionValidator.resolve(assignment.expression, member);
         }
+        //TODO validate assignments
     }
 
 

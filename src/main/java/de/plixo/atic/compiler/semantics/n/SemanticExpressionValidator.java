@@ -1,19 +1,19 @@
 package de.plixo.atic.compiler.semantics.n;
 
+import de.plio.nightlist.NightList;
 import de.plixo.atic.DebugHelper;
 import de.plixo.atic.Token;
 import de.plixo.atic.compiler.semantics.Primitives;
 import de.plixo.atic.compiler.semantics.buckets.FunctionCompilationUnit;
+import de.plixo.atic.compiler.semantics.buckets.FunctionStruct;
 import de.plixo.atic.compiler.semantics.n.exceptions.*;
 import de.plixo.atic.compiler.semantics.type.SemanticType;
-import de.plixo.atic.exceptions.NotImplementedException;
-import de.plixo.atic.exceptions.UnknownTypeException;
 import de.plixo.atic.lexer.AutoLexer;
 import de.plixo.atic.lexer.tokenizer.TokenRecord;
+import lombok.RequiredArgsConstructor;
 import lombok.val;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,20 +21,42 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static de.plixo.atic.compiler.semantics.n.SemanticAnalysisHelper.*;
 import static de.plixo.atic.compiler.semantics.type.Expression.*;
 
+@RequiredArgsConstructor
 public class SemanticExpressionValidator {
 
-    private static SemanticType described;
-    private static FunctionCompilationUnit functionUnit;
 
-    public static SemanticType validate(AutoLexer.SyntaxNode<TokenRecord<Token>> expression,
-                                        FunctionCompilationUnit functionUnit,
-                                        SemanticType described) throws RegionException {
+    final FunctionCompilationUnit functionUnit;
 
-        return byExpr(expression);
+    public SemanticType resolveMember(AutoLexer.SyntaxNode<TokenRecord<Token>> expression) {
+        return byMember(expression);
     }
 
-    private static SemanticType byFunction(AutoLexer.SyntaxNode<TokenRecord<Token>> function,
-                                           SemanticType preferred) throws RegionException {
+    public SemanticType resolve(AutoLexer.SyntaxNode<TokenRecord<Token>> expression, SemanticType described) {
+        final SemanticType semanticType = byExpr(expression, described);
+
+        if (isAutoShallow(described)) {
+            //System.out.println("resolved auto to " + semanticType);
+            return semanticType;
+        }
+        assertType(described, semanticType, expression.data.from);
+        return described;
+    }
+
+    private SemanticType byExpr(AutoLexer.SyntaxNode<TokenRecord<Token>> expr, SemanticType described) throws RegionException {
+        if (testNode(expr, "boolArithmetic")) {
+            return byBoolExpr(getNode(expr, "boolArithmetic"));
+        } else if (testNode(expr, "function")) {
+            if(described == null) {
+                throw new UnexpectedTypeException("cant resolve a nested function", expr.data.from);
+            }
+            return byFunction(expr, described);
+        } else
+            DebugHelper.printNode(expr);
+        throw new NullPointerException("tried to resolve a wrong node");
+    }
+
+    private SemanticType byFunction(AutoLexer.SyntaxNode<TokenRecord<Token>> function,
+                                    SemanticType preferred) throws RegionException {
         val functionNode = getNode(function, "function");
 
         if (preferred instanceof SemanticType.ArrayType) {
@@ -45,36 +67,51 @@ public class SemanticExpressionValidator {
 
         if (testNode(functionNode, "anonymousFunction")) {
             if (isAutoShallow(preferred)) {
-                throw new UnknownTypeException("auto cant be resolved for anonymous functions");
+                throw new UnknownTypeException("auto cant be resolved for anonymous functions",function.data.from);
             } else {
                 SemanticType.FunctionType functionType = (SemanticType.FunctionType) preferred;
                 val anonymousFunction = foundNode;
-                final AtomicInteger count = new AtomicInteger();
                 final Map<String, SemanticType> types = new TreeMap<>();
-                walk("ID", "IdList", anonymousFunction, node -> {
-                    final String name = getLeafData(node);
-                    int counter = count.getAndIncrement();
-                    if (functionUnit.declaredVariables.containsKey(name) || functionUnit.function.input
-                            .containsKey(name)) {
-                        throw new NameCollisionException("identifier \"" + name + "\" has multiple entries",
-                                node.data.from);
-                    }
-                    if (counter > functionType.input.size()) {
-                        throw new TooManyArgumentsException(node.data.from);
-                    }
-                    types.put(name, functionType.input.get(counter));
-                    //TODO evaluate function
-                });
-                if (count.get() != functionType.input.size()) {
+                final ArrayList<SemanticType> linearList = new ArrayList<>();
+                val list =
+                        walk("ID", "IdList", anonymousFunction).split(SemanticAnalysisHelper::getLeafData)
+                                .throwIf(node ->
+                                        functionUnit.declaredVariables.containsKey(node.b) || functionUnit.function
+                                                .input.containsKey(node.b), node -> {
+                                    throw new NameCollisionException("identifier \"" + node.b + "\" has multiple " +
+                                            "entries",
+                                            node.a.data.from);
+                                });
+                if (list.size() < functionType.input.size()) {
                     throw new MissingArgumentsException(anonymousFunction.data.from);
+                } else if (list.size() > functionType.input.size()) {
+                    throw new TooManyArgumentsException(anonymousFunction.data.from);
                 }
-                final ArrayList<SemanticType> typeList = new ArrayList<>();
-                types.forEach((k, v) -> typeList.add(v));
-                //assertType(functionType.output, functionType.output);
-
+                list.applyIndex((node, count) -> {
+                    final SemanticType type = functionType.input.get(count);
+                    types.put(node.b, type);
+                    linearList.add(type);
+                });
                 for (int i = 0; i < functionType.input.size(); i++) {
-                    assertType(functionType.input.get(i), typeList.get(0), anonymousFunction.data.from);
+                    assertType(functionType.input.get(i), linearList.get(0), anonymousFunction.data.from);
                 }
+
+                val subStatement = getNode(anonymousFunction, "statement");
+                val statement = genStatement(subStatement,
+                        functionUnit.mainUnit);
+                val functionStruct = new FunctionStruct("anonymousFunction", Primitives.auto_type, statement);
+                functionStruct.input.putAll(types);
+                final FunctionCompilationUnit compiledFunction = new FunctionCompilationUnit(functionUnit.mainUnit,
+                        functionStruct);
+
+                //TODO implement closure
+                //compiledFunction.declaredVariables.putAll(functionUnit.declaredVariables);
+                compiledFunction.declaredVariables.putAll(functionUnit.function.input);
+                new SemanticStatementValidator(statement, compiledFunction).validate();
+                //TODO return type detection for void
+                if(!isAutoShallow(compiledFunction.function.output))
+                    assertType(functionType.output, compiledFunction.function.output, subStatement.data.from);
+                functionUnit.mainUnit.preEvaluatedFunction.put(anonymousFunction, functionStruct);
                 return functionType;
             }
         } else {
@@ -82,7 +119,7 @@ public class SemanticExpressionValidator {
             final SemanticType returnType = genSemanticType(getNode(richFunction, "Type"), functionUnit.mainUnit);
             final AtomicInteger count = new AtomicInteger();
             final Map<String, SemanticType> types = new TreeMap<>();
-            walk("inputTerm", "inputList", richFunction, node -> {
+            walk("inputTerm", "inputList", richFunction).apply(node -> {
                 val type = getNode(node, "Type");
                 final SemanticType semanticType = genSemanticType(type, functionUnit.mainUnit);
                 final String name = getId(node);
@@ -96,7 +133,7 @@ public class SemanticExpressionValidator {
                 //TODO evaluate function
 
             });
-            final ArrayList<SemanticType> typeList = new ArrayList<>();
+            final NightList<SemanticType> typeList = NightList.create();
             types.forEach((k, v) -> typeList.add(v));
             if (!isAutoShallow(preferred)) {
                 SemanticType.FunctionType functionType = (SemanticType.FunctionType) preferred;
@@ -117,15 +154,8 @@ public class SemanticExpressionValidator {
         }
     }
 
-    private static SemanticType byExpr(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
-        if (testNode(expr, "boolArithmetic")) {
-            return byBoolExpr(expr);
-        } else {
-            return byFunction(expr, described);
-        }
-    }
 
-    private static SemanticType byBoolExpr(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
+    private SemanticType byBoolExpr(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
         if (BOOL_EXPR.isImplemented(expr)) {
             final SemanticType left = byCompExpr(BOOL_EXPR.next(expr));
             final SemanticType right = byBoolExpr(BOOL_EXPR.same(expr));
@@ -136,7 +166,7 @@ public class SemanticExpressionValidator {
             return byCompExpr(BOOL_EXPR.next(expr));
     }
 
-    private static SemanticType byCompExpr(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
+    private SemanticType byCompExpr(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
         if (COMP_EXPR.isImplemented(expr)) {
             final SemanticType left = byArithmetic(COMP_EXPR.next(expr));
             final SemanticType right = byCompExpr(COMP_EXPR.same(expr));
@@ -148,7 +178,7 @@ public class SemanticExpressionValidator {
     }
 
 
-    private static SemanticType byArithmetic(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
+    private SemanticType byArithmetic(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
         if (ARITHMETIC.isImplemented(expr)) {
             final SemanticType left = byTerm(ARITHMETIC.next(expr));
             final SemanticType right = byArithmetic(ARITHMETIC.same(expr));
@@ -159,7 +189,7 @@ public class SemanticExpressionValidator {
             return byTerm(ARITHMETIC.next(expr));
     }
 
-    private static SemanticType byTerm(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
+    private SemanticType byTerm(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
         if (TERM.isImplemented(expr)) {
             final SemanticType left = byFactor(TERM.next(expr));
             final SemanticType right = byTerm(TERM.same(expr));
@@ -171,9 +201,9 @@ public class SemanticExpressionValidator {
     }
 
 
-    private static SemanticType byFactor(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
+    private SemanticType byFactor(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
         if (testNode(expr, "expression")) {
-            return byExpr(foundNode);
+            return byExpr(foundNode, null);
         } else if (testNode(expr, "unary")) {
             val unary = foundNode;
             AutoLexer.SyntaxNode<TokenRecord<Token>> neg;
@@ -193,28 +223,35 @@ public class SemanticExpressionValidator {
         } else if (testNode(expr, "boolLiteral")) {
             return Primitives.integer_type;
         } else if (testNode(expr, "member")) {
-            val member = foundNode;
-            val memberCompound = testNode(member, "memberCompound") ? foundNode : null;
-            final String start = getId(member);
+            return byMember(foundNode);
+        }
+        throw new UnknownTypeException("not yet implemented",expr.data.from);
+    }
 
-            if (functionUnit.declaredVariables.containsKey(start)) {
-                final SemanticType semanticType = functionUnit.declaredVariables.get(start);
-                if (memberCompound == null) {
-                    return semanticType;
-                }
-                return getMember(semanticType, memberCompound);
+    private SemanticType byMember(AutoLexer.SyntaxNode<TokenRecord<Token>> expr) {
+        val memberCompound = testNode(expr, "memberCompound") ? foundNode : null;
+        final String start = getId(expr);
+
+        if (functionUnit.declaredVariables.containsKey(start)) {
+            final SemanticType semanticType = functionUnit.declaredVariables.get(start);
+            if (memberCompound == null) {
+                return semanticType;
             }
+            return byMemberTerminal(semanticType, memberCompound);
+        }
 
-            if (functionUnit.function.input.containsKey(start)) {
-                final SemanticType semanticType = functionUnit.function.input.get(start);
-                if (memberCompound == null) {
-                    return semanticType;
-                }
-                return getMember(semanticType, memberCompound);
+        if (functionUnit.function.input.containsKey(start)) {
+            final SemanticType semanticType = functionUnit.function.input.get(start);
+            if (memberCompound == null) {
+                return semanticType;
             }
-            throw new NotImplementedException("Namespace validation");
+            return byMemberTerminal(semanticType, memberCompound);
+        }
+        throw new UnknownTypeException("Cant resolve name " + start,expr.data.from);
+        //throw new NotImplementedException("Namespace validation");
 
-/*                final Optional<Namespace> any = namespaces.stream().filter(namespace -> namespace.name.equals(start))
+        /*                final Optional<Namespace> any = namespaces.stream().filter(namespace -> namespace.name
+        .equals(start))
                         .findAny();
                 if (any.isPresent()) {
                     if (testNode(member, "memberCompound")) {
@@ -226,14 +263,11 @@ public class SemanticExpressionValidator {
                     // any.get().functions.stream().filter(functionStruct -> functionStruct.name.equals())
                     return null;
                 }*/
-        }
-        DebugHelper.printNode(expr);
-        throw new UnknownTypeException("not yet implemented");
     }
 
-    private static SemanticType getMember(SemanticType type, AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
+    private SemanticType byMemberTerminal(SemanticType type, AutoLexer.SyntaxNode<TokenRecord<Token>> expr) throws RegionException {
         final SemanticType[] prevType = {type};
-        walk("varTerminal", "memberCompound", expr, node -> {
+        walk("varTerminal", "memberCompound", expr).apply(node -> {
             if (testNode(node, "memberAccess")) {
                 val memberNode = SemanticAnalysisHelper.foundNode;
                 final String name = getId(memberNode);
@@ -259,15 +293,15 @@ public class SemanticExpressionValidator {
                     throw new UnexpectedTypeException("Cant call an object", callAccess.data.from);
                 } else if (prevType[0] instanceof SemanticType.FunctionType) {
                     final SemanticType.FunctionType structType = (SemanticType.FunctionType) prevType[0];
-                    final List<SemanticType> input = structType.input;
+                    final NightList<SemanticType> input = structType.input;
                     final AtomicInteger argCount = new AtomicInteger();
                     final int size = input.size();
-                    walk("expression", "argList", callAccess, (arg) -> {
+                    walk("expression", "argList", callAccess).apply(arg -> {
                         final int count = argCount.getAndIncrement();
                         if (count >= size) {
                             throw new TooManyArgumentsException(arg.data.from);
                         }
-                        final SemanticType semanticType = byExpr(arg);
+                        final SemanticType semanticType = byExpr(arg, input.get(count));
                         assertType(semanticType, input.get(count), arg.data.from);
                     });
                     if (argCount.get() != size) {
@@ -280,7 +314,7 @@ public class SemanticExpressionValidator {
                 }
             } else if (testNode(node, "arrayAccess")) {
                 val arrayAccess = foundNode;
-                final SemanticType semanticType = byExpr(arrayAccess);
+                final SemanticType semanticType = byExpr(getNode(arrayAccess,"expression"), Primitives.integer_type);
                 assertType(semanticType, Primitives.integer_type, arrayAccess.data.from);
                 if (prevType[0] instanceof SemanticType.StructType) {
                     throw new UnexpectedTypeException("Cant index an object", arrayAccess.data.from);

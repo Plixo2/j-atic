@@ -2,10 +2,7 @@ package de.plixo.atic.compiler.semantics.n;
 
 import de.plixo.atic.Token;
 import de.plixo.atic.compiler.semantics.Primitives;
-import de.plixo.atic.compiler.semantics.buckets.CompilationUnit;
-import de.plixo.atic.compiler.semantics.buckets.FunctionStruct;
-import de.plixo.atic.compiler.semantics.buckets.Namespace;
-import de.plixo.atic.compiler.semantics.buckets.Structure;
+import de.plixo.atic.compiler.semantics.buckets.*;
 import de.plixo.atic.compiler.semantics.n.exceptions.NameCollisionException;
 import de.plixo.atic.compiler.semantics.n.exceptions.RegionException;
 import de.plixo.atic.compiler.semantics.n.exceptions.UnknownTypeException;
@@ -15,9 +12,6 @@ import de.plixo.atic.compiler.semantics.type.SemanticType;
 import de.plixo.atic.lexer.AutoLexer;
 import de.plixo.atic.lexer.tokenizer.TokenRecord;
 import lombok.val;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import static de.plixo.atic.compiler.semantics.n.SemanticAnalysisHelper.*;
 
@@ -38,10 +32,17 @@ public class SemanticAnalysis {
             makeStructsObjects();
             makeStructMembers();
             makeNamespaceObject();
+            unit.namespaces.apply(node -> {
+                node.functions.apply(functionStruct -> {
+                    new SemanticStatementValidator(functionStruct.statement,
+                            new FunctionCompilationUnit(unit, functionStruct)).validate();
+                });
+            });
         } catch (RegionException exception) {
             exception.printStackTrace();
             System.err.println("Error at " + exception.position);
         }
+
     }
 
     private void addPrimitives() {
@@ -52,20 +53,17 @@ public class SemanticAnalysis {
     }
 
     private void makeStructsObjects() throws RegionException {
-        walk("struct", "top", topLevel, node -> {
-            final Structure structure = new Structure(getId(node));
-            if (unit.containsStruct(structure.name)) {
-                throw new NameCollisionException(structure.name, node.data.from);
-            }
-            unit.addStructure(structure);
-        });
+        walk("struct", "top", topLevel).split(node -> new Structure(getId(node)))
+                .throwIf(ref -> unit.containsStruct(ref.b.name), ref -> {
+                    throw new NameCollisionException(ref.b.name, ref.a.data.from);
+                }).apply(ref -> unit.addStructure(ref.b));
     }
 
     private void makeStructMembers() throws RegionException {
-        walk("struct", "top", topLevel, struct -> {
+        walk("struct", "top", topLevel).apply(struct -> {
             final String name = getId(struct);
             final Structure structure = unit.getStruct(name);
-            walk("declaration", "declarationCompound", struct, node -> {
+            walk("declaration", "declarationCompound", struct).apply(node -> {
                 val typeOfVar = getNode(node, "Type");
                 final String nameOfVar = getId(node);
                 final SemanticType semanticType = genSemanticType(typeOfVar, unit);
@@ -78,18 +76,20 @@ public class SemanticAnalysis {
     }
 
     private void makeNamespaceObject() throws RegionException {
-        walk("logic", "top", topLevel, node -> {
+        walk("logic", "top", topLevel).apply(node -> {
             final String name = getId(node);
             final Namespace namespace = new Namespace(name);
-            walk("logicSpace", "logicCompound", node, function -> {
+            walk("logicSpace", "logicCompound", node).apply(function -> {
                 final String functionName = getId(function);
-                final SemanticType returnType = genSemanticType(getNode(function, "type"), unit);
+                val sub = getNode(function, "richFunction");
+                final SemanticType returnType = genSemanticType(getNode(sub, "type"), unit);
                 if (isAutoDeep(returnType)) {
-                    throw new UnresolvedAutoException(functionName, function.data.from);
+                    throw new UnresolvedAutoException(functionName, sub.data.from);
                 }
-                final SemanticStatement statement = genStatement(getNode(function, "statement"));
+                final SemanticStatement statement = genStatement(getNode(sub,
+                        "statement"), unit);
                 final FunctionStruct functionStruct = new FunctionStruct(functionName, returnType, statement);
-                walk("inputTerm", "inputList", function, input -> {
+                walk("inputTerm", "inputList", sub).apply(input -> {
                     final SemanticType inType = genSemanticType(getNode(input, "type"), unit);
                     if (isAutoDeep(returnType)) {
                         throw new UnknownTypeException("return", input.data.from);
@@ -104,30 +104,6 @@ public class SemanticAnalysis {
             });
             unit.addNamespace(namespace);
         });
-    }
-
-    private SemanticStatement genStatement(AutoLexer.SyntaxNode<TokenRecord<Token>> statement) throws RegionException {
-        if (testNode(statement, "blockStatement")) {
-            val blockStatement = foundNode;
-            final List<SemanticStatement> statements = new ArrayList<>();
-            walk("statement", "statementCompound", blockStatement, node -> {
-                statements.add(genStatement(node));
-            });
-            return new SemanticStatement.Block(statements);
-        } else if (testNode(statement, "declarationStatement")) {
-            val declarationStatement = foundNode;
-            final SemanticType type = genSemanticType(getNode(declarationStatement, "Type"), unit);
-            final String name = getId(declarationStatement);
-            val expression = getNode(declarationStatement, "expression");
-            return new SemanticStatement.Declaration(name, type, expression);
-        } else if (testNode(statement, "assignmentStatement")) {
-            val assignmentStatement = foundNode;
-            val member = getNode(assignmentStatement, "ID");
-            val expression = getNode(assignmentStatement, "expression");
-            return new SemanticStatement.Assignment(member, expression);
-        } else
-            throw new NullPointerException();
-        //TODO make branches statement, evaluation statement
     }
 
 
